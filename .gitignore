@@ -1,0 +1,145 @@
+# Python
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+.virtualenv/
+
+# PyCharm
+.idea/
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb_checkpoints/
+
+# Environment variables and secrets
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+credentials.json
+secrets.json
+config.json
+
+# API Keys and tokens
+*_api_key*
+*_token*
+*.env.production
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# AI/ML specific
+*.ckpt
+*.h5
+*.hdf5
+*.pb
+*.pt
+*.pth
+*.onnx
+*.pkl
+*.pickle
+models/
+checkpoints/
+data/raw/
+data/processed/
+datasets/
+*.csv
+*.tsv
+*.parquet
+
+# Logs
+*.log
+logs/
+*.log.*
+
+# Cache
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.ruff_cache/
+
+# Testing
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+.hypothesis/
+
+# Build artifacts
+*.o
+*.a
+*.out
+*.exe
+*.dll
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+.cache/
+
+# Archives (unless needed)
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# Large files that shouldn't be committed
+*.mp4
+*.avi
+*.mov
+*.mp3
+*.wav
+*.pdf
