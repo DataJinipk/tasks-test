@@ -21,7 +21,7 @@ def session_fixture():
 @pytest.fixture(name="client")
 def client_fixture(session: Session):
     def get_session_override():
-        return session
+        yield session
 
     app.dependency_overrides[get_session] = get_session_override
     client = TestClient(app)
