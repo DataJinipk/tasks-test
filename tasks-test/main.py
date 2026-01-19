@@ -7,15 +7,18 @@ from sqlmodel import Field, Session, SQLModel, create_engine, select
 class Todo(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     task: str
+    completed: bool = False
 
 
 # Request models
 class TodoCreate(SQLModel):
     task: str
+    completed: bool = False
 
 
 class TodoUpdate(SQLModel):
-    task: str
+    task: str | None = None
+    completed: bool | None = None
 
 
 # Database setup
@@ -72,7 +75,10 @@ def update_todo(todo_id: int, todo: TodoUpdate, session: Session = Depends(get_s
     db_todo = session.get(Todo, todo_id)
     if not db_todo:
         raise HTTPException(status_code=404, detail="Todo not found")
-    db_todo.task = todo.task
+    if todo.task is not None:
+        db_todo.task = todo.task
+    if todo.completed is not None:
+        db_todo.completed = todo.completed
     session.add(db_todo)
     session.commit()
     session.refresh(db_todo)
