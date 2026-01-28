@@ -22,6 +22,30 @@ class TodoUpdate(SQLModel):
     completed: bool | None = None
 
 
+class RecipeBase(SQLModel):
+    title: str
+    cuisine: str
+    difficulty: str
+    prep_time: int
+    ingredients: str
+
+
+class Recipe(RecipeBase, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+
+
+class RecipeCreate(RecipeBase):
+    pass
+
+
+class RecipeUpdate(SQLModel):
+    title: str | None = None
+    cuisine: str | None = None
+    difficulty: str | None = None
+    prep_time: int | None = None
+    ingredients: str | None = None
+
+
 engine = create_engine("sqlite:///todos.db", connect_args={"check_same_thread": False})
 SQLModel.metadata.create_all(engine)
 
@@ -84,4 +108,67 @@ def delete_todo(todo_id: int, session: Session = Depends(get_session)):
     if not todo:
         raise HTTPException(status_code=404, detail="Todo not found")
     session.delete(todo)
+    session.commit()
+
+
+# Recipe endpoints
+
+
+@app.post("/recipes", status_code=201)
+def create_recipe(
+    recipe: RecipeCreate, session: Session = Depends(get_session)
+) -> Recipe:
+    db_recipe = Recipe.model_validate(recipe)
+    session.add(db_recipe)
+    session.commit()
+    session.refresh(db_recipe)
+    return db_recipe
+
+
+@app.get("/recipes")
+def list_recipes(
+    session: Session = Depends(get_session),
+    cuisine: str | None = None,
+    difficulty: str | None = None,
+) -> list[Recipe]:
+    query = select(Recipe)
+    if cuisine:
+        query = query.where(Recipe.cuisine == cuisine)
+    if difficulty:
+        query = query.where(Recipe.difficulty == difficulty)
+    return session.exec(query).all()
+
+
+@app.get("/recipes/{recipe_id}")
+def get_recipe(recipe_id: int, session: Session = Depends(get_session)) -> Recipe:
+    recipe = session.get(Recipe, recipe_id)
+    if not recipe:
+        raise HTTPException(status_code=404, detail="Recipe not found")
+    return recipe
+
+
+@app.put("/recipes/{recipe_id}")
+def update_recipe(
+    recipe_id: int,
+    recipe_update: RecipeUpdate,
+    session: Session = Depends(get_session),
+) -> Recipe:
+    recipe = session.get(Recipe, recipe_id)
+    if not recipe:
+        raise HTTPException(status_code=404, detail="Recipe not found")
+    update_data = recipe_update.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(recipe, key, value)
+    session.add(recipe)
+    session.commit()
+    session.refresh(recipe)
+    return recipe
+
+
+@app.delete("/recipes/{recipe_id}", status_code=204)
+def delete_recipe(recipe_id: int, session: Session = Depends(get_session)):
+    recipe = session.get(Recipe, recipe_id)
+    if not recipe:
+        raise HTTPException(status_code=404, detail="Recipe not found")
+    session.delete(recipe)
     session.commit()
