@@ -4,6 +4,11 @@ from sqlmodel import Field, Session, SQLModel, create_engine, select
 app = FastAPI()
 
 
+@app.get("/")
+def root():
+    return {"message": "Hello, World!"}
+
+
 class TodoBase(SQLModel):
     task: str
     completed: bool = False

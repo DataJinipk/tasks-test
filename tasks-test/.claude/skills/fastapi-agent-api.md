@@ -61,11 +61,35 @@ When asked for CRUD, include:
 - PUT /resources/{id} - Update
 - DELETE /resources/{id} - Delete (return 204)
 
-## Instructions
+## Principles
 
-1. Always include type hints
-2. Use Pydantic models for request/response bodies
-3. Return appropriate status codes (201 for create, 204 for delete)
-4. Include HTTPException for 404 errors on single-item endpoints
-5. Support optional query parameters for filtering on list endpoints
-6. Generate valid, runnable code that can be tested immediately
+### Type Hints (Required)
+- Always use type hints for ALL path parameters: `item_id: int`
+- Always use type hints for ALL query parameters: `q: str | None = None`
+- Always use type hints for return types: `def get_item(...) -> dict:`
+- Use `int`, `str`, `bool`, `float` for primitives
+- Use `| None` for optional parameters
+
+### Return Values (Required)
+- Always return dictionaries, never `None`
+- Every endpoint must return meaningful data
+- DELETE endpoints return 204 with no body (the only exception)
+- Error cases return HTTPException, not None
+
+### Function Naming (Required)
+- Function names MUST match endpoint purpose
+- Use verb + noun pattern:
+  - `get_item` for GET /items/{id}
+  - `list_items` for GET /items
+  - `create_item` for POST /items
+  - `update_item` for PUT /items/{id}
+  - `delete_item` for DELETE /items/{id}
+  - `search_items` for GET /search
+- Never use generic names like `handler` or `endpoint`
+
+### Other Requirements
+- Use Pydantic models for request/response bodies
+- Return appropriate status codes (201 for create, 204 for delete)
+- Include HTTPException for 404 errors on single-item endpoints
+- Support optional query parameters for filtering on list endpoints
+- Generate valid, runnable code that can be tested immediately
