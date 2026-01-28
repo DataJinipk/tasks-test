@@ -9,6 +9,11 @@ def root():
     return {"message": "Hello, World!"}
 
 
+@app.get("/health")
+def health_check():
+    return {"status": "healthy"}
+
+
 class TodoBase(SQLModel):
     task: str
     completed: bool = False
