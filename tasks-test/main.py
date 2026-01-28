@@ -41,8 +41,17 @@ def create_todo(todo: TodoCreate, session: Session = Depends(get_session)) -> To
 
 
 @app.get("/todos")
-def get_todos(session: Session = Depends(get_session)) -> list[Todo]:
-    return session.exec(select(Todo)).all()
+def get_todos(
+    session: Session = Depends(get_session),
+    completed: bool | None = None,
+    search: str | None = None,
+) -> list[Todo]:
+    query = select(Todo)
+    if completed is not None:
+        query = query.where(Todo.completed == completed)
+    if search:
+        query = query.where(Todo.task.contains(search))
+    return session.exec(query).all()
 
 
 @app.get("/todos/{todo_id}")
