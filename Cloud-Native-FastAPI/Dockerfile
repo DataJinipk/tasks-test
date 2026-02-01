@@ -16,8 +16,7 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen
 
 # Copy application code
-COPY main
-COPY test_main.py pytest.ini ./
+COPY main.py test_main.py pytest.ini ./
 
 # Expose port 80000
 EXPOSE 8000
