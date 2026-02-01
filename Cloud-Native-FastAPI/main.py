@@ -36,7 +36,7 @@ def todo() -> List[TodoItemResponse]:
 def add_todo(todo: TodoItem) -> TodoItemResponse:
     if todo.id == 0:
         raise HTTPException(status_code=400, detail="ID 0 is not allowed")
-    todo_response = TodoItemResponse(**todo.dict(), completed=False)
+    todo_response = TodoItemResponse(**todo.model_dump(), completed=False)
     return todo_response
 
 @app.delete("/todo/{item_id}")
@@ -47,7 +47,7 @@ def delete_todo(item_id: int):
 @app.put("/todo/{item_id}")
 def update_todo(item_id: int, todo: TodoItem) -> TodoItemResponse:
     """Update a todo item by its ID"""
-    todo_response = TodoItemResponse(**todo.dict(), completed=False)
+    todo_response = TodoItemResponse(**todo.model_dump(), completed=False)
     return todo_response
 
 @app.patch("/todo/{item_id}/complete")
