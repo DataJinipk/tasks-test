@@ -11,12 +11,12 @@ app = FastAPI(
 class TodoItem(BaseModel):
     id: int
     title: str
-    time_estimate: int = None  # in minutes
+    time_estimate: int | None = None  # in minutes
 
 class TodoItemResponse(BaseModel):
     id: int
     title: str
-    time_estimate: int = None  # in minutes
+    time_estimate: int | None = None  # in minutes
     completed: bool = False
 
 # In-memory storage
