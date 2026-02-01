@@ -31,12 +31,33 @@ uvicorn main:app --host 0.0.0.0 --port 8000
 
 ## API Endpoints
 
-| Method | Endpoint  | Description                    |
-|--------|-----------|--------------------------------|
-| GET    | `/`       | Root endpoint                  |
-| GET    | `/health` | Health check for orchestration |
-| GET    | `/docs`   | Swagger UI documentation       |
-| GET    | `/redoc`  | ReDoc documentation            |
+| Method | Endpoint                 | Description                    |
+|--------|--------------------------|--------------------------------|
+| GET    | `/`                      | Root endpoint                  |
+| GET    | `/health`                | Health check for orchestration |
+| GET    | `/todo`                  | List all todos                 |
+| POST   | `/todo`                  | Create a new todo              |
+| PUT    | `/todo/{item_id}`        | Update a todo                  |
+| DELETE | `/todo/{item_id}`        | Delete a todo                  |
+| PATCH  | `/todo/{item_id}/complete` | Mark todo as complete        |
+| GET    | `/docs`                  | Swagger UI documentation       |
+| GET    | `/redoc`                 | ReDoc documentation            |
+
+## Docker
+
+```bash
+# Build the image
+docker build -t docproject:dev .
+
+# Run the container
+docker run -d -p 8000:8000 --name docproject docproject:dev
+
+# Run tests inside container
+docker exec docproject uv run pytest -v
+
+# Stop and remove
+docker stop docproject && docker rm docproject
+```
 
 ## Running Tests
 
@@ -47,20 +68,25 @@ pytest
 ## Project Structure
 
 ```
-cloud-native-fastapi/
+docproject/
 ├── main.py           # FastAPI application
 ├── test_main.py      # Tests
 ├── pyproject.toml    # Project configuration
 ├── pytest.ini        # Pytest configuration
+├── Dockerfile        # Container configuration
+├── .dockerignore     # Docker ignore rules
 └── README.md         # This file
 ```
 
 ## Dependencies
 
+**Currently Used:**
 - **FastAPI** - Modern web framework
 - **Uvicorn** - ASGI server
 - **Pydantic** - Data validation
+- **pytest** - Testing framework
+
+**Available for Future Use:**
 - **SQLModel** - ORM with Pydantic integration
 - **databases** - Async database support
 - **Alembic** - Database migrations
-- **pytest** - Testing framework
