@@ -942,6 +942,215 @@ spec:
           name: myapp-config
 ```
 
+### Resource Planning for AI/ML Workloads
+
+AI workloads (LLMs, embeddings, agents) have unique resource characteristics.
+
+#### Understanding Node Resources
+
+```bash
+# Check what's available on your node
+kubectl describe node <node-name> | grep -A20 "Allocated resources:"
+
+# Key fields:
+# - Capacity: Total node resources
+# - Allocatable: Available for pods (after system reservations)
+# - Allocated: Currently requested by pods
+```
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    RESOURCE HIERARCHY                            │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  Node Capacity (e.g., 8GB)                                      │
+│  └── System Reserved (~5-10%)                                   │
+│      └── Allocatable (~7.5GB)                                   │
+│          └── kube-system pods (~300-500Mi)                      │
+│              └── Available for YOUR pods (~7GB)                 │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### What Happens When Resources Exceed Limits
+
+| Scenario | Behavior |
+|----------|----------|
+| **Request > Node Allocatable** | Pod stays `Pending` - scheduler can't place it |
+| **Memory Usage > Limit** | Pod gets **OOMKilled** and restarts |
+| **CPU Usage > Limit** | Pod gets **throttled** (not killed) |
+| **Usage > Request** (no limit) | Works until node pressure, then eviction |
+| **Node under memory pressure** | Kubelet evicts pods exceeding requests first |
+
+```bash
+# Diagnose resource issues
+kubectl describe pod <pod-name> | grep -A10 "State:"
+kubectl get events --field-selector reason=OOMKilling
+kubectl get events --field-selector reason=FailedScheduling
+```
+
+#### AI Workload Resource Requirements
+
+| Workload Type | Memory | CPU | Notes |
+|---------------|--------|-----|-------|
+| Local LLM (7B params) | 4-8 GB | 2-4 cores | Avoid on small clusters |
+| Local LLM (13B params) | 8-16 GB | 4-8 cores | Needs dedicated node |
+| Embedding model (local) | 1-2 GB | 1-2 cores | sentence-transformers |
+| Vector DB (Chroma/Qdrant) | 512Mi-2GB | 0.5-1 core | Scales with data size |
+| LangChain/Agent runtime | 256Mi-1GB | 0.25-1 core | Depends on tools |
+| API-based agent (OpenAI/Claude) | 128-512Mi | 0.1-0.5 core | Minimal - just HTTP calls |
+
+#### Resource Specs for Common AI Patterns
+
+**API-based AI Agent (OpenAI, Claude, etc.):**
+```yaml
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "250m"
+  limits:
+    memory: "512Mi"
+    cpu: "500m"
+```
+
+**LangChain Agent with Tools:**
+```yaml
+resources:
+  requests:
+    memory: "512Mi"
+    cpu: "500m"
+  limits:
+    memory: "1Gi"
+    cpu: "1"
+```
+
+**Embedding Service (API-based):**
+```yaml
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "250m"
+  limits:
+    memory: "512Mi"
+    cpu: "500m"
+```
+
+**Local Embedding Model (sentence-transformers):**
+```yaml
+resources:
+  requests:
+    memory: "1Gi"
+    cpu: "1"
+  limits:
+    memory: "2Gi"
+    cpu: "2"
+```
+
+**Vector Database (Chroma/Qdrant):**
+```yaml
+resources:
+  requests:
+    memory: "512Mi"
+    cpu: "250m"
+  limits:
+    memory: "1Gi"
+    cpu: "500m"
+```
+
+**Local LLM (Ollama - only on large nodes):**
+```yaml
+resources:
+  requests:
+    memory: "6Gi"    # Minimum for 7B model
+    cpu: "2"
+  limits:
+    memory: "8Gi"
+    cpu: "4"
+```
+
+#### Resource Quotas for AI Namespaces
+
+Prevent runaway AI workloads from consuming all cluster resources:
+
+```yaml
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: ai-workloads-quota
+  namespace: ai-agents
+spec:
+  hard:
+    requests.memory: "6Gi"
+    limits.memory: "8Gi"
+    requests.cpu: "4"
+    limits.cpu: "8"
+    pods: "10"
+```
+
+#### LimitRange for Default Resources
+
+Ensure all pods in AI namespace have resource specs:
+
+```yaml
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: ai-limit-range
+  namespace: ai-agents
+spec:
+  limits:
+  - default:
+      memory: "512Mi"
+      cpu: "500m"
+    defaultRequest:
+      memory: "256Mi"
+      cpu: "250m"
+    max:
+      memory: "4Gi"
+      cpu: "2"
+    type: Container
+```
+
+#### Monitoring Resource Usage
+
+```bash
+# Install metrics-server if not present
+kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+
+# Monitor node resources
+kubectl top node
+
+# Monitor pod resources
+kubectl top pods
+kubectl top pods --sort-by=memory
+
+# Watch resources in real-time
+watch kubectl top pods
+```
+
+#### Best Practices for AI Workloads
+
+1. **Use API-based models for small clusters** - Local LLMs need dedicated resources
+2. **Always set resource requests AND limits** - Prevents noisy neighbor issues
+3. **Start conservative, scale up** - Monitor actual usage before increasing
+4. **Use separate namespaces** - Isolate AI workloads with quotas
+5. **Consider node affinity** - Pin heavy workloads to specific nodes
+6. **Use HPA carefully** - AI workloads often have spiky, unpredictable load
+
+```yaml
+# Node affinity for GPU/high-memory nodes
+spec:
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: workload-type
+            operator: In
+            values:
+            - ai-compute
+```
+
 ---
 
 ## Level 5: Enterprise Patterns
