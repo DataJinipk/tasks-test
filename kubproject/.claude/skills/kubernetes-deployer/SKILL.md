@@ -1306,6 +1306,93 @@ spec:
 
 ## kubectl Essential Commands
 
+### Cluster Health Verification
+
+**Quick health check (run these first):**
+
+```bash
+# Cluster overview - is the API server responding?
+kubectl cluster-info
+
+# Node status - are nodes Ready?
+kubectl get nodes -o wide
+
+# All system pods healthy?
+kubectl get pods -n kube-system
+
+# Any pods in bad state? (should return empty)
+kubectl get pods -A | grep -v Running | grep -v Completed
+```
+
+**Detailed cluster health:**
+
+```bash
+# Node conditions (Ready, MemoryPressure, DiskPressure, PIDPressure)
+kubectl describe node <node-name> | grep -A5 "Conditions:"
+
+# Quick check: are all nodes Ready?
+kubectl get nodes -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.conditions[?(@.type=="Ready")].status}{"\n"}{end}'
+
+# Component status (deprecated but still useful)
+kubectl get componentstatuses
+
+# Cluster resource usage (requires metrics-server)
+kubectl top nodes
+kubectl top pods -A --sort-by=memory | head -10
+```
+
+**Recent events (problems show up here):**
+
+```bash
+# All events sorted by time
+kubectl get events -A --sort-by='.lastTimestamp' | tail -20
+
+# Warning events only
+kubectl get events -A --field-selector type=Warning
+
+# Events for specific namespace
+kubectl get events -n <namespace> --sort-by='.lastTimestamp'
+```
+
+**Health check script:**
+
+```bash
+#!/bin/bash
+echo "=== Cluster Health Check ==="
+
+echo -e "\n1. API Server:"
+kubectl cluster-info | head -1
+
+echo -e "\n2. Nodes:"
+kubectl get nodes
+
+echo -e "\n3. System Pods:"
+kubectl get pods -n kube-system --no-headers | awk '{print $1, $3}' | column -t
+
+echo -e "\n4. Unhealthy Pods:"
+BAD_PODS=$(kubectl get pods -A --no-headers | grep -v Running | grep -v Completed)
+if [ -z "$BAD_PODS" ]; then
+    echo "All pods healthy ✓"
+else
+    echo "$BAD_PODS"
+fi
+
+echo -e "\n5. Recent Warnings:"
+kubectl get events -A --field-selector type=Warning --sort-by='.lastTimestamp' 2>/dev/null | tail -5 || echo "No warnings ✓"
+
+echo -e "\n=== Health Check Complete ==="
+```
+
+**Common health issues:**
+
+| Symptom | Command to Diagnose | Likely Cause |
+|---------|---------------------|--------------|
+| `kubectl` hangs | `kubectl cluster-info` | API server down, network issue |
+| Node `NotReady` | `kubectl describe node <name>` | Kubelet issue, resource pressure |
+| Pods `Pending` | `kubectl describe pod <name>` | No resources, no matching node |
+| Pods `CrashLoopBackOff` | `kubectl logs <pod> --previous` | App error, bad config |
+| Pods `ImagePullBackOff` | `kubectl describe pod <name>` | Wrong image, auth issue |
+
 ### Viewing Resources
 
 ```bash
