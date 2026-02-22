@@ -1306,6 +1306,22 @@ spec:
 
 ## kubectl Essential Commands
 
+### Quick Cluster Verification and Context Check
+
+**Always run these first to verify cluster and context:**
+
+```bash
+# Cluster verification
+kubectl cluster-info                    # Verify API server is accessible
+kubectl get nodes                       # Check node status (should be Ready)
+kubectl config current-context         # Verify which cluster you're targeting
+kubectl get namespaces                 # Check available namespaces
+
+# Quick health check
+kubectl get pods -A | head -10         # Check system pods are running
+kubectl get componentstatuses 2>/dev/null || echo "Components OK"  # Check system components
+```
+
 ### Cluster Health Verification
 
 **Quick health check (run these first):**
@@ -1322,6 +1338,44 @@ kubectl get pods -n kube-system
 
 # Any pods in bad state? (should return empty)
 kubectl get pods -A | grep -v Running | grep -v Completed
+```
+
+**Comprehensive cluster verification commands:**
+
+```bash
+# Cluster overview - API server endpoints
+kubectl cluster-info
+
+# Node status and capacity
+kubectl get nodes
+kubectl get nodes -o wide                    # Extended info (IP, OS, arch)
+kubectl describe nodes                       # Detailed node information
+
+# Check node conditions
+kubectl get nodes --show-labels
+kubectl get nodes -L kubernetes.io/arch -L kubernetes.io/os
+kubectl describe nodes | grep -A 8 "Conditions:"
+
+# Check system pods
+kubectl get pods -n kube-system
+kubectl get pods -n kube-system -o wide
+
+# Check cluster components
+kubectl get componentstatuses 2>/dev/null || echo "ComponentStatus deprecated in newer versions"
+kubectl get cs 2>/dev/null || echo "ComponentStatus deprecated in newer versions"
+
+# Check cluster events
+kubectl get events -A --sort-by='.lastTimestamp' | tail -10
+
+# Check resource usage (requires metrics-server)
+kubectl top nodes
+kubectl top nodes --use-protocol-buffers    # Alternative for large clusters
+kubectl top pods -A
+kubectl top pods -A --sort-by=memory | head -10
+
+# Check for issues
+kubectl get pods -A | grep -E "(CrashLoopBackOff|ImagePullBackOff|Error|Pending)"
+kubectl get nodes | grep -v Ready
 ```
 
 **Detailed cluster health:**
@@ -1462,17 +1516,65 @@ kubectl cp ./local-file <pod-name>:/path/file
 
 ### Context and Configuration
 
+**Essential context management commands:**
+
 ```bash
-# View config
-kubectl config view
-kubectl config get-contexts
+# View current context
 kubectl config current-context
+
+# View all contexts
+kubectl config get-contexts
+
+# View kubeconfig details
+kubectl config view
 
 # Switch context
 kubectl config use-context <context-name>
 
-# Set namespace
+# Set namespace for current context
 kubectl config set-context --current --namespace=<namespace>
+
+# View context details
+kubectl config get-contexts --output=name
+kubectl config view --minify               # View current context only
+kubectl config view -o jsonpath='{.contexts[?(@.name=="<context-name>")].context.namespace}'
+
+# Context-specific operations
+kubectl --context=<context-name> get nodes
+kubectl --context=<context-name> get pods
+```
+
+**Complete kubeconfig management:**
+
+```bash
+# Basic config operations
+kubectl config view                                    # Show all config
+kubectl config get-contexts                           # List all contexts
+kubectl config current-context                        # Show current context
+
+# Context operations
+kubectl config use-context <context-name>             # Switch to context
+kubectl config set-context --current --namespace=<ns>  # Set default namespace
+kubectl config set-context <context-name> --namespace=<ns>  # Set namespace for specific context
+
+# Context management
+kubectl config delete-context <context-name>          # Remove context
+kubectl config rename-context <old-name> <new-name>   # Rename context
+
+# Cluster operations
+kubectl config get-clusters                           # List clusters
+kubectl config set-cluster <cluster-name> --server=<server-url>  # Modify cluster
+kubectl config delete-cluster <cluster-name>          # Remove cluster
+
+# User operations
+kubectl config get-users                              # List users
+kubectl config set-credentials <user-name> --token=<token>  # Set token
+kubectl config delete-user <user-name>                # Remove user
+
+# Advanced kubeconfig management
+export KUBECONFIG=~/.kube/config:~/.kube/production   # Combine config files
+kubectl config set-credentials <user> --client-certificate=<cert> --client-key=<key>  # Cert auth
+kubectl config set-cluster <cluster> --certificate-authority=<ca> --embed-certs=true  # CA cert
 ```
 
 ---
@@ -2437,3 +2539,519 @@ spec:
 5. **Resource Quotas**: Set quotas specifically for GPU resources to prevent over-provisioning
 6. **Storage**: Plan for high-performance storage for model loading and data access
 7. **Health Checks**: Adjust probe parameters for long-startup GPU applications
+
+---
+
+## Workflow Orchestration in Kubernetes
+
+### Introduction to Workflow Orchestration
+
+Workflow orchestration in Kubernetes is the process of managing and automating complex, multi-step operations that span multiple pods, services, and resources. Instead of running individual deployments manually, orchestration allows you to define dependencies, handle failures gracefully, and execute multi-step processes automatically.
+
+### Key Workflow Orchestration Tools
+
+1. **Argo Workflows** - Cloud-native workflow engine for Kubernetes
+2. **Kubeflow Pipelines** - ML-focused workflow orchestration
+3. **Tekton** - Kubernetes-native CI/CD framework
+4. **Apache Airflow** - Platform to programmatically author, schedule and monitor workflows
+
+### Argo Workflows Example
+
+Argo is one of the most popular workflow engines for Kubernetes:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: ai-training-workflow-
+spec:
+  entrypoint: ai-training
+  serviceAccountName: argo
+  volumes:
+  - name: shared-data
+    emptyDir: {}
+  templates:
+  - name: ai-training
+    steps:
+    - - name: data-preparation
+        template: prep-data
+    - - name: model-training
+        template: train-model
+        arguments:
+          artifacts:
+          - name: training-data
+            from: "{{steps.data-preparation.outputs.artifacts.data}}"
+    - - name: model-evaluation
+        template: evaluate-model
+        arguments:
+          artifacts:
+          - name: trained-model
+            from: "{{steps.model-training.outputs.artifacts.model}}"
+
+  - name: prep-data
+    container:
+      image: python:3.9
+      command: [python]
+      args: ["prep_data.py"]
+      volumeMounts:
+      - name: shared-data
+        mountPath: /data
+    outputs:
+      artifacts:
+      - name: data
+        path: /data/training_data.json
+
+  - name: train-model
+    inputs:
+      artifacts:
+      - name: training-data
+        path: /input/training_data.json
+    container:
+      image: pytorch/pytorch:2.0.1-cuda11.7-cudnn8-runtime
+      command: [python]
+      args: ["train.py", "/input/training_data.json"]
+      resources:
+        requests:
+          nvidia.com/gpu: 1
+          memory: "8Gi"
+          cpu: "2"
+        limits:
+          nvidia.com/gpu: 1
+          memory: "16Gi"
+          cpu: "4"
+    outputs:
+      artifacts:
+      - name: model
+        path: /model/trained_model.pth
+
+  - name: evaluate-model
+    inputs:
+      artifacts:
+      - name: trained-model
+        path: /model/trained_model.pth
+    container:
+      image: python:3.9
+      command: [python]
+      args: ["evaluate.py", "/model/trained_model.pth"]
+```
+
+### Kubeflow Pipeline Example
+
+For ML-specific workflows:
+
+```yaml
+# This would be implemented as a KFP component
+# Component: data-preparation
+name: data-preparation
+inputs: []
+outputs:
+- {name: output_dataset, type: Dataset}
+implementation:
+  container:
+    image: my-data-prep:latest
+    command: ['python', 'prepare_data.py']
+    args: [
+        '--output-path', {outputPath: output_dataset}
+    ]
+
+# Component: model-training
+name: model-training
+inputs:
+- {name: input_dataset, type: Dataset}
+outputs:
+- {name: trained_model, type: Model}
+implementation:
+  container:
+    image: pytorch/training:latest
+    command: ['python', 'train.py']
+    args: [
+        '--dataset-path', {inputPath: input_dataset},
+        '--output-path', {outputPath: trained_model}
+    ]
+    resources:
+      requests:
+        nvidia.com/gpu: 1
+        memory: "8Gi"
+        cpu: "2"
+      limits:
+        nvidia.com/gpu: 1
+        memory: "16Gi"
+        cpu: "4"
+---
+# Pipeline DSL in Python
+import kfp
+from kfp import dsl
+
+@dsl.pipeline(
+    name='ai-training-pipeline',
+    description='Complete AI model training pipeline'
+)
+def ai_training_pipeline():
+    data_prep_task = kfp.components.load_component_from_file('data-prep.component.yaml')()
+
+    train_task = kfp.components.load_component_from_file('training.component.yaml')(
+        input_dataset=data_prep_task.outputs['output_dataset']
+    )
+    train_task.set_gpu_limit(1, "nvidia")
+
+    eval_task = kfp.components.load_component_from_file('evaluation.component.yaml')(
+        trained_model=train_task.outputs['trained_model']
+    )
+```
+
+### Tekton Pipeline Example
+
+For CI/CD-style workflows:
+
+```yaml
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: ai-model-pipeline
+spec:
+  params:
+  - name: model-image
+    type: string
+    default: "my-ai-model:latest"
+  - name: git-url
+    type: string
+    default: "https://github.com/example/ai-model.git"
+  tasks:
+  - name: fetch-source
+    taskRef:
+      name: git-clone
+    params:
+    - name: url
+      value: $(params.git-url)
+    workspaces:
+    - name: output
+      workspace: shared-workspace
+
+  - name: run-tests
+    taskRef:
+      name: run-python-tests
+    runAfter: ["fetch-source"]
+    workspaces:
+    - name: source
+      workspace: shared-workspace
+
+  - name: build-model
+    taskRef:
+      name: buildah
+    runAfter: ["run-tests"]
+    params:
+    - name: IMAGE
+      value: $(params.model-image)
+    workspaces:
+    - name: source
+      workspace: shared-workspace
+
+  - name: deploy-model
+    taskRef:
+      name: kubectl-apply
+    runAfter: ["build-model"]
+    params:
+    - name: manifests
+      value: |
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: ai-model
+        spec:
+          replicas: 2
+          selector:
+            matchLabels:
+              app: ai-model
+          template:
+            metadata:
+              labels:
+                app: ai-model
+            spec:
+              containers:
+              - name: model
+                image: $(params.model-image)
+                ports:
+                - containerPort: 8080
+                resources:
+                  requests:
+                    memory: "2Gi"
+                    cpu: "1"
+                  limits:
+                    memory: "4Gi"
+                    cpu: "2"
+---
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  name: ai-model-pipeline-run
+spec:
+  pipelineRef:
+    name: ai-model-pipeline
+  params:
+  - name: model-image
+    value: "my-ai-model:v1.2.3"
+  - name: git-url
+    value: "https://github.com/myorg/ai-model.git"
+  workspaces:
+  - name: shared-workspace
+    volumeClaimTemplate:
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 10Gi
+```
+
+### Custom Workflow with Jobs and CronJobs
+
+For simpler workflows that don't require a dedicated workflow engine:
+
+```yaml
+---
+# Workflow: Data Ingestion → Processing → Model Training → Validation
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: data-ingestion-job
+spec:
+  template:
+    spec:
+      containers:
+      - name: ingester
+        image: my-data-ingester:latest
+        env:
+        - name: OUTPUT_PATH
+          value: "/data/raw"
+        volumeMounts:
+        - name: data-storage
+          mountPath: /data
+      volumes:
+      - name: data-storage
+        persistentVolumeClaim:
+          claimName: workflow-data-pvc
+      restartPolicy: OnFailure
+  backoffLimit: 4
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: workflow-controller-config
+data:
+  workflow.yaml: |
+    steps:
+    - name: data-ingestion
+      job: data-ingestion-job
+      depends-on: []
+    - name: data-processing
+      job: data-processing-job
+      depends-on: ["data-ingestion"]
+    - name: model-training
+      job: model-training-job
+      depends-on: ["data-processing"]
+    - name: model-validation
+      job: model-validation-job
+      depends-on: ["model-training"]
+---
+# Workflow controller deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: workflow-controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: workflow-controller
+  template:
+    metadata:
+      labels:
+        app: workflow-controller
+    spec:
+      containers:
+      - name: controller
+        image: my-workflow-controller:latest
+        env:
+        - name: WORKFLOW_CONFIG
+          valueFrom:
+            configMapKeyRef:
+              name: workflow-controller-config
+              key: workflow.yaml
+        volumeMounts:
+        - name: config-volume
+          mountPath: /etc/workflow
+      volumes:
+      - name: config-volume
+        configMap:
+          name: workflow-controller-config
+```
+
+### Advanced Workflow Patterns
+
+#### Conditional Execution
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: conditional-workflow-
+spec:
+  entrypoint: conditional-example
+  templates:
+  - name: conditional-example
+    steps:
+    - - name: check-data-quality
+        template: validate-data
+    - - name: process-optimization
+        template: optimize-processing
+        when: "{{steps.check-data-quality.outputs.result}} > 0.8"
+    - - name: fallback-processing
+        template: basic-processing
+        when: "{{steps.check-data-quality.outputs.result}} <= 0.8"
+
+  - name: validate-data
+    script:
+      image: python:3.9
+      command: [python]
+      source: |
+        import random
+        quality_score = random.uniform(0.5, 1.0)
+        print(quality_score)
+      outputs:
+        parameters:
+        - name: quality-score
+          valueFrom:
+            path: /dev-stdout
+
+  - name: optimize-processing
+    container:
+      image: my-optimized-processor:latest
+      command: [echo]
+      args: ["Running optimized processing pipeline"]
+
+  - name: basic-processing
+    container:
+      image: my-basic-processor:latest
+      command: [echo]
+      args: ["Running basic processing pipeline"]
+```
+
+#### Parallel Processing and Fan-out/Fan-in
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: parallel-workflow-
+spec:
+  entrypoint: parallel-example
+  arguments:
+    parameters:
+    - name: model-types
+      value: "[{'name': 'model-a'}, {'name': 'model-b'}, {'name': 'model-c'}]"
+  templates:
+  - name: parallel-example
+    steps:
+    - - name: fan-out
+        template: train-model
+        arguments:
+          parameters:
+          - name: model-type
+            value: "{{item}}"
+        withParam: "{{workflow.parameters.model-types}}"
+    - - name: fan-in
+        template: aggregate-results
+        arguments:
+          parameters:
+          - name: results
+            value: "{{steps.fan-out.outputs.result}}"
+
+  - name: train-model
+    inputs:
+      parameters:
+      - name: model-type
+    script:
+      image: python:3.9
+      command: [python]
+      source: |
+        import time
+        import json
+        print(f"Training { {{inputs.parameters.model-type.name}} }")
+        time.sleep(10)  # Simulate training
+        result = {
+          "model": "{{inputs.parameters.model-type.name}}",
+          "accuracy": 0.85 + (hash("{{inputs.parameters.model-type.name}}") % 100) / 1000
+        }
+        print(json.dumps(result))
+      outputs:
+        parameters:
+        - name: result
+          valueFrom:
+            path: /dev-stdout
+
+  - name: aggregate-results
+    inputs:
+      parameters:
+      - name: results
+    script:
+      image: python:3.9
+      command: [python]
+      source: |
+        import json
+        results = json.loads("{{inputs.parameters.results}}")
+        best_model = max(results, key=lambda x: x.get('accuracy', 0))
+        print(f"Best model: {best_model['model']} with accuracy {best_model['accuracy']:.3f}")
+```
+
+### Best Practices for Workflow Orchestration
+
+1. **Error Handling**: Always define retry policies and failure handling
+2. **Resource Management**: Set appropriate resource requests and limits
+3. **Security**: Use proper service accounts and RBAC for workflow execution
+4. **Monitoring**: Implement proper logging and monitoring for workflows
+5. **Parameterization**: Make workflows configurable through parameters
+6. **Versioning**: Version your workflow templates and components
+7. **Cleanup**: Implement proper cleanup policies for completed workflows
+
+### Workflow Monitoring and Observability
+
+```yaml
+# ServiceMonitor for Argo Workflows
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: argo-workflows-monitor
+  labels:
+    app: argo-workflows
+spec:
+  selector:
+    matchLabels:
+      app: workflow-controller
+  endpoints:
+  - port: metrics
+    interval: 30s
+    path: /metrics
+---
+# Workflow logging configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: workflow-logging-config
+  namespace: argo
+data:
+  log-config: |
+    {
+      "level": "info",
+      "format": "json",
+      "output": {
+        "type": "stdout"
+      },
+      "handlers": [
+        {
+          "type": "elasticsearch",
+          "host": "elasticsearch:9200",
+          "index": "argo-workflows"
+        }
+      ]
+    }
+```
