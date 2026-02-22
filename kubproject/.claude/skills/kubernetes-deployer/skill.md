@@ -1544,6 +1544,27 @@ kubectl --context=<context-name> get nodes
 kubectl --context=<context-name> get pods
 ```
 
+**Enhanced context and namespace switching with kubectx/kubens:**
+
+```bash
+# Install kubectx/kubens for faster switching (recommended)
+# macOS: brew install kubectx
+# Linux: sudo snap install kubectx
+
+# Interactive context switching with fuzzy search
+kubectx                                    # Interactive context selector
+kubectx -                                  # Switch to previous context
+kubectx <context-name>                     # Switch to specific context
+
+# Interactive namespace switching with fuzzy search
+kubens                                     # Interactive namespace selector
+kubens -                                   # Switch to previous namespace
+kubens <namespace-name>                    # Switch to specific namespace
+
+# One-liner to show current context and namespace
+echo "Context: $(kubectl config current-context), Namespace: $(kubectl config view --minify -o jsonpath='{..namespace}')"
+```
+
 **Complete kubeconfig management:**
 
 ```bash
@@ -1686,14 +1707,90 @@ kdev apply -f app.yaml  # local dev
 
 **5. Install kubectx/kubens (recommended):**
 ```bash
+# Installation
 # macOS
 brew install kubectx
 
-# Usage
-kubectx              # interactive context switcher with fuzzy search
-kubens               # interactive namespace switcher
-kubectx docker-desktop  # quick switch
+# Linux
+# Using snap
+sudo snap install kubectx
+
+# Using script
+curl -LO https://github.com/ahmetb/kubectx/releases/latest/download/kubectx_0.9.4_linux_x86_64.tar.gz
+tar -xzf kubectx_0.9.4_linux_x86_64.tar.gz
+sudo mv kubectx /usr/local/bin/
+sudo mv kubens /usr/local/bin/
+
+# Windows (using Chocolatey)
+choco install kubectx
 ```
+
+**Advanced kubectx/kubens usage:**
+```bash
+# Context switching (interactive fuzzy search)
+kubectx                    # Interactive selection of contexts
+kubectx -                  # Switch to previous context
+kubectx ctx-name           # Switch to specific context by name
+kubectx -l, --list         # List contexts with additional info
+kubectx -d, --delete ctx-name  # Delete a context
+
+# Namespace switching (interactive fuzzy search)
+kubens                     # Interactive selection of namespaces
+kubens -                   # Switch to previous namespace
+kubens kube-system         # Switch to specific namespace
+kubens -l, --list          # List all namespaces in current context
+kubens -c, --current       # Show current namespace only
+
+# Advanced filtering
+kubectx | grep prod        # Filter contexts matching 'prod'
+kubens | grep -v kube-system  # List namespaces excluding kube-system
+
+# Setting up shell completions
+# For bash
+kubectx --completion bash > /etc/bash_completion.d/kubectx
+kubens --completion bash > /etc/bash_completion.d/kubens
+
+# For zsh
+kubectx --completion zsh > /usr/local/share/zsh/site-functions/_kubectx
+kubens --completion zsh > /usr/local/share/zsh/site-functions/_kubens
+
+# Customization options
+export KUBECTX_CURRENT_DIR="${HOME}/.kube"  # Custom config location
+export KUBECTX_IGNORE_FZF=1                 # Disable fuzzy finder
+export KUBECTX_HIDE_FZF_HEADER=1            # Hide header in fzf
+export KUBECTX_USE_DEFAULT_FZF="true"       # Enable fzf features
+
+# Keyboard shortcuts during interactive mode
+# - Tab/Shift+Tab: Navigate
+# - Enter: Select
+# - Ctrl+C: Cancel
+# - Ctrl+R: Reverse search history
+```
+
+**Integration with shell prompts:**
+```bash
+# Enhanced shell prompt showing both context and namespace
+# Add to ~/.bashrc or ~/.zshrc
+prompt_k8s_info() {
+  local ctx=$(kubectl config current-context 2>/dev/null || echo "unknown")
+  local ns=$(kubectl config view --minify -o jsonpath='{..namespace}' 2>/dev/null || echo "default")
+  echo "[k8s: ${ctx}/${ns}]"
+}
+
+export PS1='$(prompt_k8s_info) \w $ '
+
+# Or simpler version
+export PS1='[k8s: $(kubectx -c)/$(kubens -c)] \w $ '
+
+# Result: [k8s: docker-desktop/default] ~/myapp $
+```
+
+**kubectx/kubens best practices:**
+- Use descriptive context names that include environment info (dev/staging/prod)
+- Take advantage of fuzzy search for faster navigation
+- Use shell prompt integration to avoid confusion between clusters
+- Combine with aliases for even faster access to frequently used contexts/namespaces
+- Use the -l flag to get additional information about your contexts/namespaces
 
 ### Safe Multi-Cluster Workflow
 
@@ -1731,6 +1828,12 @@ kubectx docker-desktop  # quick switch
 | `kubectl config set-context --current --namespace=NS` | Set default namespace |
 | `kubectl config delete-context NAME` | Remove context |
 | `kubectl config rename-context OLD NEW` | Rename context |
+| `kubectx` | Interactive context switcher with fuzzy search |
+| `kubectx -` | Switch to previous context |
+| `kubectx NAME` | Switch to specific context by name |
+| `kubens` | Interactive namespace switcher with fuzzy search |
+| `kubens -` | Switch to previous namespace |
+| `kubens NAME` | Switch to specific namespace by name |
 
 ---
 
