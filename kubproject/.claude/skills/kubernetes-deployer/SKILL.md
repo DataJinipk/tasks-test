@@ -1740,3 +1740,700 @@ kubectl apply -k overlays/prod/
 | Service not reachable | `kubectl get endpoints` | Check selector labels match |
 | HPA not scaling | `kubectl describe hpa` | Check metrics-server, resource requests |
 | Deployment stuck | `kubectl rollout status` | Check pod errors, resource limits |
+
+---
+
+## GPU-Accelerated AI/ML Workloads
+
+### GPU Resource Management in Kubernetes
+
+Kubernetes supports GPU-accelerated workloads through device plugins that expose GPUs as schedulable resources. When a GPU is allocated to a container, the device plugin ensures that all required GPU libraries and binaries are mounted into the container.
+
+#### Prerequisites
+
+Before deploying GPU workloads, ensure:
+1. GPU-enabled nodes with proper drivers installed
+2. NVIDIA Device Plugin deployed on GPU nodes
+3. NVIDIA Container Runtime configured
+4. Appropriate node labels and taints set up
+
+#### GPU Resource Requests
+
+To request GPU resources in a pod specification, use the `nvidia.com/gpu` resource name:
+
+```yaml
+spec:
+  containers:
+  - name: gpu-app
+    resources:
+      requests:
+        nvidia.com/gpu: 1    # Request 1 GPU
+        memory: "4Gi"
+        cpu: "2"
+      limits:
+        nvidia.com/gpu: 1    # Limit to 1 GPU
+        memory: "8Gi"
+        cpu: "4"
+```
+
+### GPU-Accelerated AI Model Training Deployment
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gpu-ai-trainer
+  namespace: ai-workloads
+  labels:
+    app: gpu-ai-trainer
+    workload-type: gpu-training
+spec:
+  replicas: 1  # Training jobs are often single instance
+  selector:
+    matchLabels:
+      app: gpu-ai-trainer
+  template:
+    metadata:
+      labels:
+        app: gpu-ai-trainer
+    spec:
+      # Ensure pod lands on a GPU-enabled node
+      nodeSelector:
+        nvidia.com/gpu.present: "true"
+      tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
+      containers:
+      - name: ai-trainer
+        image: pytorch/pytorch:2.0.1-cuda11.7-cudnn8-runtime
+        command: ["python", "train_model.py"]
+        ports:
+        - containerPort: 8080
+        env:
+        - name: NVIDIA_VISIBLE_DEVICES
+          value: "all"
+        - name: CUDA_VISIBLE_DEVICES
+          value: "0"
+        - name: PYTHONDONTWRITEBYTECODE
+          value: "1"
+        # GPU and memory intensive resource allocation
+        resources:
+          requests:
+            nvidia.com/gpu: 1
+            memory: "16Gi"
+            cpu: "4"
+          limits:
+            nvidia.com/gpu: 1
+            memory: "32Gi"
+            cpu: "8"
+        # Volume for dataset access
+        volumeMounts:
+        - name: dataset-storage
+          mountPath: /data
+        - name: model-storage
+          mountPath: /models
+        # Health checks for long-running training
+        livenessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - "ls /tmp/training_active || exit 1"
+          initialDelaySeconds: 300  # 5 minutes for model to start
+          periodSeconds: 300       # Check every 5 minutes
+          timeoutSeconds: 30
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - "ls /tmp/model_loaded || exit 1"
+          initialDelaySeconds: 180
+          periodSeconds: 60
+          timeoutSeconds: 15
+      volumes:
+      - name: dataset-storage
+        persistentVolumeClaim:
+          claimName: dataset-pvc
+      - name: model-storage
+        persistentVolumeClaim:
+          claimName: model-pvc
+---
+# Service for accessing training metrics
+apiVersion: v1
+kind: Service
+metadata:
+  name: gpu-ai-trainer-service
+  namespace: ai-workloads
+spec:
+  selector:
+    app: gpu-ai-trainer
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080
+  - name: metrics
+    port: 8081
+    targetPort: 8081
+  type: ClusterIP
+---
+# GPU-specific resource quota
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: gpu-resources-quota
+  namespace: ai-workloads
+spec:
+  hard:
+    requests.nvidia.com/gpu: "4"
+    limits.nvidia.com/gpu: "4"
+    requests.memory: "64Gi"
+    limits.memory: "128Gi"
+```
+
+### GPU-Accelerated Inference Service
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gpu-inference-service
+  namespace: ai-workloads
+  labels:
+    app: gpu-inference
+    workload-type: gpu-inference
+spec:
+  replicas: 2  # Multiple replicas for load balancing
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: gpu-inference
+  template:
+    metadata:
+      labels:
+        app: gpu-inference
+    spec:
+      # Node affinity for GPU nodes
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: nvidia.com/gpu.present
+                operator: In
+                values:
+                - "true"
+              - key: node-type
+                operator: In
+                values:
+                - gpu-compute
+      tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
+      containers:
+      - name: inference-server
+        image: nvcr.io/nvidia/tritonserver:23.08-py3
+        ports:
+        - containerPort: 8000  # HTTP
+        - containerPort: 8001  # gRPC
+        - containerPort: 8002  # metrics
+        env:
+        - name: NVIDIA_VISIBLE_DEVICES
+          value: "all"
+        - name: TRITON_SERVER_GPU_ENABLED
+          value: "1"
+        - name: MODEL_STORE
+          value: "/models"
+        # GPU resources for inference
+        resources:
+          requests:
+            nvidia.com/gpu: 1
+            memory: "8Gi"
+            cpu: "2"
+          limits:
+            nvidia.com/gpu: 1
+            memory: "16Gi"
+            cpu: "4"
+        # Volume for models
+        volumeMounts:
+        - name: model-storage
+          mountPath: /models
+        # Health checks
+        livenessProbe:
+          httpGet:
+            path: /v2/health/live
+            port: 8000
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /v2/health/ready
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+        startupProbe:
+          httpGet:
+            path: /v2/health/ready
+            port: 8000
+          failureThreshold: 30
+          periodSeconds: 10
+      volumes:
+      - name: model-storage
+        persistentVolumeClaim:
+          claimName: inference-models-pvc
+---
+# Service for the GPU inference service
+apiVersion: v1
+kind: Service
+metadata:
+  name: gpu-inference-service
+  namespace: ai-workloads
+spec:
+  selector:
+    app: gpu-inference
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8000
+    nodePort: 30080
+  - name: grpc
+    port: 8001
+    targetPort: 8001
+  - name: metrics
+    port: 8002
+    targetPort: 8002
+  type: LoadBalancer  # Expose for external inference requests
+---
+# Horizontal Pod Autoscaler for GPU inference
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: gpu-inference-hpa
+  namespace: ai-workloads
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: gpu-inference-service
+  minReplicas: 2
+  maxReplicas: 8
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  # Custom metric for GPU utilization when available
+  - type: Pods
+    pods:
+      metric:
+        name: gpu_utilization
+      target:
+        type: AverageValue
+        averageValue: "70"
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 10
+        periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
+```
+
+### Multi-GPU Training Job (StatefulSet for persistent state)
+
+```yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: multi-gpu-training
+  namespace: ai-workloads
+spec:
+  serviceName: multi-gpu-training-headless
+  replicas: 4  # 4 nodes with distributed training
+  selector:
+    matchLabels:
+      app: multi-gpu-training
+  template:
+    metadata:
+      labels:
+        app: multi-gpu-training
+    spec:
+      # Ensure GPU availability
+      nodeSelector:
+        nvidia.com/gpu.present: "true"
+      tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
+      initContainers:
+      - name: init-gpu-check
+        image: nvidia/cuda:11.7-base-ubuntu20.04
+        command: ['sh', '-c', 'nvidia-smi']
+      containers:
+      - name: distributed-trainer
+        image: pytorch/pytorch:2.0.1-cuda11.7-cudnn8-runtime
+        command: ["torchrun", "--nnodes=4", "--nproc_per_node=2", "train_distributed.py"]
+        env:
+        - name: MASTER_ADDR
+          value: "multi-gpu-training-0.multi-gpu-training-headless"
+        - name: MASTER_PORT
+          value: "29500"
+        - name: RANK
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: WORLD_SIZE
+          value: "4"
+        - name: NVIDIA_VISIBLE_DEVICES
+          value: "0,1"  # Use 2 GPUs per node
+        ports:
+        - containerPort: 29500  # Torch distributed port
+        resources:
+          requests:
+            nvidia.com/gpu: 2  # Request 2 GPUs per pod
+            memory: "32Gi"
+            cpu: "8"
+          limits:
+            nvidia.com/gpu: 2  # Limit to 2 GPUs
+            memory: "64Gi"
+            cpu: "16"
+        volumeMounts:
+        - name: dataset-storage
+          mountPath: /data
+        - name: model-storage
+          mountPath: /models
+        - name: shared-tmp
+          mountPath: /tmp/shared
+        # Health checks for distributed training
+        livenessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - "ps aux | grep torchrun | grep -v grep || exit 1"
+          initialDelaySeconds: 600
+          periodSeconds: 600
+          timeoutSeconds: 60
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - "test -f /tmp/training_initialized || exit 1"
+          initialDelaySeconds: 300
+          periodSeconds: 120
+          timeoutSeconds: 30
+      volumes:
+      - name: dataset-storage
+        persistentVolumeClaim:
+          claimName: large-dataset-pvc
+      - name: model-storage
+        persistentVolumeClaim:
+          claimName: distributed-models-pvc
+      - name: shared-tmp
+        emptyDir: {}
+---
+# Headless service for StatefulSet
+apiVersion: v1
+kind: Service
+metadata:
+  name: multi-gpu-training-headless
+  namespace: ai-workloads
+spec:
+  clusterIP: None  # Headless service for StatefulSet
+  selector:
+    app: multi-gpu-training
+```
+
+### GPU Monitoring and Metrics DaemonSet
+
+```yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: gpu-node-exporter
+  namespace: monitoring
+  labels:
+    app: gpu-node-exporter
+spec:
+  selector:
+    matchLabels:
+      app: gpu-node-exporter
+  template:
+    metadata:
+      labels:
+        app: gpu-node-exporter
+    spec:
+      hostNetwork: true
+      hostPID: true
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+        effect: NoSchedule
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
+      containers:
+      - name: node-exporter
+        image: nvidia/dcgm-exporter:latest
+        ports:
+        - name: metrics
+          containerPort: 9400
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 65534
+        volumeMounts:
+        - name: podinfo
+          mountPath: /etc/podinfo
+      volumes:
+      - name: podinfo
+        hostPath:
+          path: /etc/podinfo
+          type: Directory
+---
+# GPU-specific ConfigMap for monitoring
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gpu-monitoring-config
+  namespace: monitoring
+data:
+  dcgm.conf: |
+    [dcgm]
+    collectd_enabled = false
+    [nv-hostengine]
+    remote_hosts =
+    [dcgm-exporter]
+    address = :9400
+    collectinterval = 30000
+    noconnectionretry = true
+    gpuids =
+    counters = DCGM_FI_DEV_GPU_TEMP,DCGM_FI_DEV_TOTAL_ENERGY_CONSUMPTION,DCGM_FI_DEV_POWER_USAGE,DCGM_FI_DEV_FB_USED,DCGM_FI_DEV_FB_TOTAL
+```
+
+### Complete GPU-Accelerated AI/ML Pipeline
+
+```yaml
+---
+# Namespace for GPU workloads
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gpu-ai-pipeline
+  labels:
+    name: gpu-ai-pipeline
+---
+# Resource quotas for GPU namespace
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: gpu-pipeline-quota
+  namespace: gpu-ai-pipeline
+spec:
+  hard:
+    requests.nvidia.com/gpu: "8"
+    limits.nvidia.com/gpu: "8"
+    requests.memory: "64Gi"
+    limits.memory: "128Gi"
+    requests.cpu: "16"
+    limits.cpu: "32"
+    pods: "20"
+---
+# Limit range for GPU containers
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: gpu-limit-range
+  namespace: gpu-ai-pipeline
+spec:
+  limits:
+  - type: Container
+    default:
+      nvidia.com/gpu: "1"
+      memory: "8Gi"
+      cpu: "2"
+    defaultRequest:
+      nvidia.com/gpu: "1"
+      memory: "4Gi"
+      cpu: "1"
+    max:
+      nvidia.com/gpu: "4"
+      memory: "32Gi"
+      cpu: "16"
+    min:
+      nvidia.com/gpu: "1"
+      memory: "2Gi"
+      cpu: "0.5"
+---
+# GPU-enabled AI pipeline deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gpu-ai-pipeline
+  namespace: gpu-ai-pipeline
+  labels:
+    app: gpu-ai-pipeline
+    pipeline: gpu-inference
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: gpu-ai-pipeline
+  template:
+    metadata:
+      labels:
+        app: gpu-ai-pipeline
+    spec:
+      # Node affinity for GPU nodes with specific requirements
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: nvidia.com/gpu.present
+                operator: In
+                values:
+                - "true"
+              - key: nvidia.com/gpu.memory
+                operator: Gt
+                values:
+                - "15360"  # 15GB+ GPU memory (e.g., RTX 4090 or A100)
+      tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
+      containers:
+      - name: gpu-ai-service
+        image: tensorflow/tensorflow:2.13.0-gpu
+        command: ["python", "app.py"]
+        ports:
+        - containerPort: 8501  # TensorFlow Serving port
+        env:
+        - name: NVIDIA_VISIBLE_DEVICES
+          value: "0"
+        - name: TF_FORCE_GPU_ALLOW_GROWTH
+          value: "true"
+        - name: OMP_NUM_THREADS
+          value: "4"
+        - name: KMP_AFFINITY
+          value: "granularity=fine,verbose,compact,1,0"
+        resources:
+          requests:
+            nvidia.com/gpu: 1
+            memory: "8Gi"
+            cpu: "4"
+          limits:
+            nvidia.com/gpu: 1
+            memory: "16Gi"
+            cpu: "8"
+        volumeMounts:
+        - name: model-storage
+          mountPath: /models
+        - name: cache-storage
+          mountPath: /tmp/cache
+        livenessProbe:
+          httpGet:
+            path: /v1/models/default
+            port: 8501
+          initialDelaySeconds: 120
+          periodSeconds: 60
+        readinessProbe:
+          httpGet:
+            path: /v1/models/default:predict
+            port: 8501
+          initialDelaySeconds: 60
+          periodSeconds: 30
+        startupProbe:
+          httpGet:
+            path: /v1/models
+            port: 8501
+          failureThreshold: 60
+          periodSeconds: 10
+      volumes:
+      - name: model-storage
+        persistentVolumeClaim:
+          claimName: ai-models-pvc
+      - name: cache-storage
+        emptyDir:
+          sizeLimit: 2Gi
+---
+# LoadBalancer service for external access
+apiVersion: v1
+kind: Service
+metadata:
+  name: gpu-ai-pipeline-service
+  namespace: gpu-ai-pipeline
+spec:
+  selector:
+    app: gpu-ai-pipeline
+  ports:
+  - port: 80
+    targetPort: 8501
+    name: inference
+  - port: 8502
+    targetPort: 8502
+    name: metrics
+  type: LoadBalancer
+---
+# Network policy for GPU AI services
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: gpu-ai-policy
+  namespace: gpu-ai-pipeline
+spec:
+  podSelector:
+    matchLabels:
+      app: gpu-ai-pipeline
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: frontend
+    ports:
+    - protocol: TCP
+      port: 8501
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    ports:
+    - protocol: TCP
+      port: 9090
+```
+
+### Key Points for GPU-accelerated AI/ML Workloads:
+
+1. **GPU Resource Requests**: Use `nvidia.com/gpu` as a resource request in container specs
+2. **Node Selection**: Use node selectors or affinity rules to ensure pods land on GPU-enabled nodes
+3. **Tolerations**: Add tolerations for GPU taints that prevent non-GPU workloads from running on GPU nodes
+4. **Monitoring**: Deploy GPU monitoring tools like DCGM exporter to track GPU utilization
+5. **Resource Quotas**: Set quotas specifically for GPU resources to prevent over-provisioning
+6. **Storage**: Plan for high-performance storage for model loading and data access
+7. **Health Checks**: Adjust probe parameters for long-startup GPU applications
