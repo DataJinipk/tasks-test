@@ -1,0 +1,1120 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FinAI-Lens — IFRS 9 ECL & Ratio Analysis</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'] },
+        },
+      },
+    };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+
+    /* Remove number input spinners for a cleaner look */
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
+    input[type=number] {
+      -moz-appearance: textfield;
+    }
+
+    .fade-in {
+      animation: fade 0.4s ease;
+    }
+
+    @keyframes fade {
+      from {
+        opacity: 0;
+        transform: translateY(4px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+  </style>
+</head>
+
+<body class="bg-slate-900 text-slate-200 min-h-screen antialiased">
+
+  <!-- Header -->
+  <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-20">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div
+          class="h-10 w-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-900/40">
+          <svg class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 13l4-4 4 4 7-7M21 6h-4m4 0v4" />
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-lg sm:text-xl font-bold tracking-tight text-white">FinAI-Lens</h1>
+          <p class="text-xs text-slate-400 -mt-0.5">IFRS 9 ECL &amp; Financial Ratio Analytics</p>
+        </div>
+      </div>
+      <button id="exportBtn"
+        class="inline-flex items-center gap-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 transition px-3 sm:px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-emerald-900/30 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-offset-2 focus:ring-offset-slate-900">
+        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round"
+            d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3" />
+        </svg>
+        <span class="hidden sm:inline">Export Summary</span>
+        <span class="sm:hidden">Export</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-8">
+
+    <!-- ================= IFRS 9 ECL CALCULATOR ================= -->
+    <section class="space-y-4">
+      <div class="flex items-center gap-2">
+        <span
+          class="text-xs font-semibold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded px-2 py-0.5">Module
+          01</span>
+        <h2 class="text-xl font-bold text-white">IFRS 9 — Expected Credit Loss Calculator</h2>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+
+        <!-- Inputs -->
+        <div class="lg:col-span-3 bg-slate-800/50 border border-slate-700/60 rounded-2xl p-5 sm:p-6 shadow-xl">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+            <div>
+              <label class="block text-sm font-medium text-slate-300 mb-1.5">Asset Portfolio Amount (EAD)</label>
+              <div class="relative">
+                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">$</span>
+                <input id="portfolio" type="number" value="50000000" min="0" step="100000"
+                  class="w-full pl-7 pr-3 py-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition" />
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-300 mb-1.5">Gross NPL Ratio</label>
+              <div class="relative">
+                <input id="nplRatio" type="number" value="8" min="0" max="100" step="0.1"
+                  class="w-full pl-3 pr-8 py-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition" />
+                <span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">%</span>
+              </div>
+            </div>
+          </div>
+
+          <p class="text-xs text-slate-400 mb-2">Allocate the portfolio across IFRS 9 stages and assign PD / LGD for
+            each. ECL per stage = Exposure × PD × LGD.</p>
+
+          <!-- Stage table -->
+          <div class="overflow-x-auto rounded-xl border border-slate-700/60">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="bg-slate-900/70 text-slate-400 text-xs uppercase tracking-wider">
+                  <th class="text-left font-semibold px-3 py-2.5">Stage</th>
+                  <th class="text-right font-semibold px-3 py-2.5">Allocation %</th>
+                  <th class="text-right font-semibold px-3 py-2.5">PD %</th>
+                  <th class="text-right font-semibold px-3 py-2.5">LGD %</th>
+                  <th class="text-right font-semibold px-3 py-2.5">Stage ECL</th>
+                </tr>
+              </thead>
+              <tbody id="stageBody" class="divide-y divide-slate-700/50"></tbody>
+              <tfoot>
+                <tr class="bg-slate-900/50 font-semibold text-slate-200">
+                  <td class="px-3 py-2.5">Total</td>
+                  <td class="px-3 py-2.5 text-right"><span id="allocTotal">100.0%</span></td>
+                  <td class="px-3 py-2.5"></td>
+                  <td class="px-3 py-2.5"></td>
+                  <td class="px-3 py-2.5 text-right text-emerald-400"><span id="eclTotalCell">$0</span></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+          <p id="allocWarn" class="hidden text-xs text-amber-400 mt-2">⚠ Stage allocations do not sum to 100%. Results
+            are still computed on the entered weights.</p>
+        </div>
+
+        <!-- ECL Results -->
+        <div class="lg:col-span-2 space-y-4">
+          <div
+            class="bg-gradient-to-br from-emerald-600/20 to-teal-700/10 border border-emerald-500/30 rounded-2xl p-5 shadow-xl">
+            <p class="text-sm font-medium text-emerald-300">Total ECL Provision Pool</p>
+            <p id="eclTotal" class="text-3xl sm:text-4xl font-extrabold text-white mt-1 tabular-nums">$0</p>
+            <p id="eclPctPortfolio" class="text-xs text-slate-300 mt-1">— of portfolio</p>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div class="bg-slate-800/50 border border-slate-700/60 rounded-2xl p-4">
+              <p class="text-xs font-medium text-slate-400">NPL Amount</p>
+              <p id="nplAmount" class="text-xl font-bold text-white mt-1 tabular-nums">$0</p>
+            </div>
+            <div class="bg-slate-800/50 border border-slate-700/60 rounded-2xl p-4">
+              <p class="text-xs font-medium text-slate-400">Coverage Ratio</p>
+              <p id="coverage" class="text-xl font-bold mt-1 tabular-nums">0%</p>
+              <p class="text-[10px] text-slate-500 mt-0.5">ECL ÷ NPL</p>
+            </div>
+          </div>
+
+          <div class="bg-slate-800/50 border border-slate-700/60 rounded-2xl p-4">
+            <p class="text-xs font-medium text-slate-400 mb-3">ECL Composition by Stage</p>
+            <div id="eclBar" class="flex h-3 w-full rounded-full overflow-hidden bg-slate-900"></div>
+            <div id="eclLegend" class="mt-3 space-y-1.5 text-xs"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= FINANCIAL RATIO SUITE ================= -->
+    <section class="space-y-4">
+      <div class="flex items-center gap-2">
+        <span
+          class="text-xs font-semibold uppercase tracking-wider text-sky-400 bg-sky-500/10 border border-sky-500/20 rounded px-2 py-0.5">Module
+          02</span>
+        <h2 class="text-xl font-bold text-white">Financial Ratio Suite</h2>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        <!-- Inputs -->
+        <div class="bg-slate-800/50 border border-slate-700/60 rounded-2xl p-5 sm:p-6 shadow-xl">
+          <h3 class="text-sm font-semibold text-slate-300 mb-4 flex items-center gap-2">
+            <span class="h-2 w-2 rounded-full bg-sky-400"></span> Balance Sheet &amp; Income Statement Inputs
+          </h3>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-slate-300 mb-1.5">Current Assets</label>
+              <div class="relative">
+                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">$</span>
+                <input id="curAssets" type="number" value="2400000" min="0" step="10000"
+                  class="w-full pl-7 pr-3 py-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition" />
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-300 mb-1.5">Current Liabilities</label>
+              <div class="relative">
+                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">$</span>
+                <input id="curLiab" type="number" value="1500000" min="0" step="10000"
+                  class="w-full pl-7 pr-3 py-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition" />
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-300 mb-1.5">Net Income</label>
+              <div class="relative">
+                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">$</span>
+                <input id="netIncome" type="number" value="780000" step="10000"
+                  class="w-full pl-7 pr-3 py-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition" />
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-300 mb-1.5">Total Revenue</label>
+              <div class="relative">
+                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">$</span>
+                <input id="revenue" type="number" value="5200000" min="0" step="10000"
+                  class="w-full pl-7 pr-3 py-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none transition" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Ratio results -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div id="card-current"
+            class="bg-slate-800/50 border border-slate-700/60 rounded-2xl p-5 shadow-xl flex flex-col justify-between">
+            <div class="flex items-start justify-between">
+              <p class="text-sm font-medium text-slate-300">Current Ratio</p>
+              <span id="badge-current"
+                class="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full">—</span>
+            </div>
+            <p id="val-current" class="text-3xl font-extrabold text-white mt-2 tabular-nums">0.00</p>
+            <p id="note-current" class="text-xs text-slate-400 mt-1">Liquidity · CA ÷ CL</p>
+          </div>
+
+          <div id="card-margin"
+            class="bg-slate-800/50 border border-slate-700/60 rounded-2xl p-5 shadow-xl flex flex-col justify-between">
+            <div class="flex items-start justify-between">
+              <p class="text-sm font-medium text-slate-300">Net Profit Margin</p>
+              <span id="badge-margin"
+                class="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full">—</span>
+            </div>
+            <p id="val-margin" class="text-3xl font-extrabold text-white mt-2 tabular-nums">0.0%</p>
+            <p id="note-margin" class="text-xs text-slate-400 mt-1">Profitability · NI ÷ Revenue</p>
+          </div>
+
+          <div class="bg-slate-800/50 border border-slate-700/60 rounded-2xl p-5 shadow-xl sm:col-span-2">
+            <p class="text-sm font-medium text-slate-300 mb-2">Working Capital</p>
+            <p id="val-wc" class="text-2xl font-bold text-white tabular-nums">$0</p>
+            <p class="text-xs text-slate-400 mt-1">Current Assets − Current Liabilities</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="max-w-7xl mx-auto px-4 sm:px-6 py-6 text-center text-xs text-slate-500 border-t border-slate-800 mt-8">
+    FinAI-Lens · Analytical tool for indicative use only — not a substitute for audited provisioning or formal financial
+    advice.
+  </footer>
+
+  <!-- Toast -->
+  <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 hidden">
+    <div
+      class="bg-slate-800 border border-slate-600 text-slate-100 text-sm rounded-lg px-4 py-2.5 shadow-2xl flex items-center gap-2">
+      <svg class="h-4 w-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+      </svg>
+      <span id="toastMsg">Done</span>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      "use strict";
+
+      // ---------- Stage configuration (IFRS 9) ----------
+      var STAGES = [
+        { key: "s1", name: "Stage 1", sub: "Performing · 12-month ECL", color: "#10b981", alloc: 80, pd: 1, lgd: 40 },
+        { key: "s2", name: "Stage 2", sub: "Underperforming · Lifetime ECL", color: "#f59e0b", alloc: 12, pd: 8, lgd: 45 },
+        { key: "s3", name: "Stage 3", sub: "Non-performing · Lifetime ECL", color: "#ef4444", alloc: 8, pd: 100, lgd: 65 }
+      ];
+
+      var lastResults = {}; // cache for export
+
+      // ---------- Helpers ----------
+      function $(id) { return document.getElementById(id); }
+      function num(id) { var v = parseFloat($(id).value); return isFinite(v) ? v : 0; }
+
+      function fmtMoney(v) {
+        if (!isFinite(v)) v = 0;
+        return "$" + Math.round(v).toLocaleString("en-US");
+      }
+      function fmtMoneyShort(v) {
+        var a = Math.abs(v);
+        if (a >= 1e9) return "$" + (v / 1e9).toFixed(2) + "B";
+        if (a >= 1e6) return "$" + (v / 1e6).toFixed(2) + "M";
+        if (a >= 1e3) return "$" + (v / 1e3).toFixed(1) + "K";
+        return fmtMoney(v);
+      }
+      function pct(v, dp) { dp = dp == null ? 1 : dp; return (isFinite(v) ? v : 0).toFixed(dp) + "%"; }
+
+      // ---------- Build stage rows ----------
+      function buildStageRows() {
+        var body = $("stageBody");
+        body.innerHTML = "";
+        STAGES.forEach(function (s) {
+          var tr = document.createElement("tr");
+          tr.className = "hover:bg-slate-800/40 transition";
+          tr.innerHTML =
+            '<td class="px-3 py-2.5">' +
+            '<div class="flex items-center gap-2">' +
+            '<span class="h-2.5 w-2.5 rounded-full" style="background:' + s.color + '"></span>' +
+            '<div><div class="font-semibold text-slate-200">' + s.name + '</div>' +
+            '<div class="text-[10px] text-slate-500">' + s.sub + '</div></div>' +
+            '</div>' +
+            '</td>' +
+            cell(s.key + "_alloc", s.alloc) +
+            cell(s.key + "_pd", s.pd) +
+            cell(s.key + "_lgd", s.lgd) +
+            '<td class="px-3 py-2.5 text-right tabular-nums text-slate-200" id="' + s.key + '_ecl">$0</td>';
+          body.appendChild(tr);
+        });
+      }
+      function cell(id, val) {
+        return '<td class="px-3 py-2.5 text-right">' +
+          '<input id="' + id + '" type="number" value="' + val + '" min="0" step="0.1" ' +
+          'class="w-20 text-right tabular-nums px-2 py-1 rounded-md bg-slate-900 border border-slate-700 text-white text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none" /></td>';
+      }
+
+      // ---------- ECL computation ----------
+      function computeECL() {
+        var portfolio = num("portfolio");
+        var nplRatio = num("nplRatio");
+        var nplAmount = portfolio * nplRatio / 100;
+
+        var totalECL = 0, allocSum = 0, stageData = [];
+
+        STAGES.forEach(function (s) {
+          var alloc = num(s.key + "_alloc");
+          var pd = num(s.key + "_pd");
+          var lgd = num(s.key + "_lgd");
+          var exposure = portfolio * alloc / 100;
+          var ecl = exposure * (pd / 100) * (lgd / 100);
+          allocSum += alloc;
+          totalECL += ecl;
+          stageData.push({ name: s.name, color: s.color, alloc: alloc, pd: pd, lgd: lgd, exposure: exposure, ecl: ecl });
+          $(s.key + "_ecl").textContent = fmtMoneyShort(ecl);
+        });
+
+        // Stage ECL %
+        stageData.forEach(function (d) { d.share = totalECL > 0 ? (d.ecl / totalECL * 100) : 0; });
+
+        $("eclTotal").textContent = fmtMoney(totalECL);
+        $("eclTotalCell").textContent = fmtMoneyShort(totalECL);
+        $("eclPctPortfolio").textContent = pct(portfolio > 0 ? totalECL / portfolio * 100 : 0, 2) + " of portfolio";
+        $("nplAmount").textContent = fmtMoneyShort(nplAmount);
+
+        var cov = nplAmount > 0 ? (totalECL / nplAmount * 100) : 0;
+        var covEl = $("coverage");
+        covEl.textContent = pct(cov, 1);
+        covEl.className = "text-xl font-bold mt-1 tabular-nums " +
+          (cov >= 60 ? "text-emerald-400" : cov >= 35 ? "text-amber-400" : "text-red-400");
+
+        // Allocation total
+        $("allocTotal").textContent = pct(allocSum, 1);
+        $("allocWarn").classList.toggle("hidden", Math.abs(allocSum - 100) < 0.05);
+
+        // Composition bar + legend
+        var bar = $("eclBar"); bar.innerHTML = "";
+        var legend = $("eclLegend"); legend.innerHTML = "";
+        stageData.forEach(function (d) {
+          var seg = document.createElement("div");
+          seg.style.width = (d.share || 0) + "%";
+          seg.style.background = d.color;
+          seg.title = d.name + ": " + fmtMoneyShort(d.ecl);
+          bar.appendChild(seg);
+
+          var row = document.createElement("div");
+          row.className = "flex items-center justify-between";
+          row.innerHTML =
+            '<span class="flex items-center gap-2 text-slate-300">' +
+            '<span class="h-2 w-2 rounded-full" style="background:' + d.color + '"></span>' + d.name +
+            '</span>' +
+            '<span class="tabular-nums text-slate-400">' + fmtMoneyShort(d.ecl) + ' · ' + pct(d.share, 0) + '</span>';
+          legend.appendChild(row);
+        });
+
+        lastResults.ecl = {
+          portfolio: portfolio, nplRatio: nplRatio, nplAmount: nplAmount,
+          totalECL: totalECL, eclPct: portfolio > 0 ? totalECL / portfolio * 100 : 0,
+          coverage: cov, allocSum: allocSum, stages: stageData
+        };
+      }
+
+      // ---------- Ratio computation ----------
+      function setHealth(cardId, badgeId, valId, noteId, value, display, status, note) {
+        var colors = {
+          healthy: { badge: "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30", txt: "HEALTHY", ring: "border-emerald-500/40" },
+          caution: { badge: "bg-amber-500/20 text-amber-300 border border-amber-500/30", txt: "CAUTION", ring: "border-amber-500/40" },
+          risk: { badge: "bg-red-500/20 text-red-300 border border-red-500/30", txt: "AT RISK", ring: "border-red-500/40" }
+        };
+        var c = colors[status];
+        $(badgeId).textContent = c.txt;
+        $(badgeId).className = "text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full " + c.badge;
+        $(valId).textContent = display;
+        $(noteId).textContent = note;
+        $(cardId).className = "bg-slate-800/50 border " + c.ring + " rounded-2xl p-5 shadow-xl flex flex-col justify-between transition";
+      }
+
+      function computeRatios() {
+        var ca = num("curAssets"), cl = num("curLiab");
+        var ni = num("netIncome"), rev = num("revenue");
+
+        // Current ratio
+        var cr = cl > 0 ? ca / cl : 0;
+        var crStatus = cr >= 1.5 ? "healthy" : cr >= 1.0 ? "caution" : "risk";
+        var crNote = cr >= 1.5 ? "Strong short-term liquidity" : cr >= 1.0 ? "Adequate but watch liquidity" : "Liquidity shortfall risk";
+        setHealth("card-current", "badge-current", "val-current", "note-current",
+          cr, cl > 0 ? cr.toFixed(2) : "—", crStatus, "Liquidity · " + crNote);
+
+        // Net profit margin
+        var npm = rev > 0 ? (ni / rev * 100) : 0;
+        var npmStatus = npm >= 10 ? "healthy" : npm >= 0 ? "caution" : "risk";
+        var npmNote = npm >= 10 ? "Robust profitability" : npm >= 0 ? "Thin margin — monitor costs" : "Operating at a loss";
+        setHealth("card-margin", "badge-margin", "val-margin", "note-margin",
+          npm, rev > 0 ? npm.toFixed(1) + "%" : "—", npmStatus, "Profitability · " + npmNote);
+
+        // Working capital
+        var wc = ca - cl;
+        var wcEl = $("val-wc");
+        wcEl.textContent = fmtMoney(wc);
+        wcEl.className = "text-2xl font-bold tabular-nums " + (wc >= 0 ? "text-white" : "text-red-400");
+
+        lastResults.ratios = {
+          currentAssets: ca, currentLiabilities: cl, netIncome: ni, revenue: rev,
+          currentRatio: cr, currentStatus: crStatus,
+          netMargin: npm, marginStatus: npmStatus, workingCapital: wc
+        };
+      }
+
+      // ---------- Export ----------
+      function buildMarkdown() {
+        var e = lastResults.ecl || {}, r = lastResults.ratios || {};
+        var d = new Date();
+        var lines = [];
+        lines.push("# FinAI-Lens — Analytical Summary");
+        lines.push("");
+        lines.push("_Generated: " + d.toLocaleString("en-US") + "_");
+        lines.push("");
+        lines.push("## 1. IFRS 9 — Expected Credit Loss");
+        lines.push("");
+        lines.push("| Metric | Value |");
+        lines.push("|---|---|");
+        lines.push("| Asset Portfolio (EAD) | " + fmtMoney(e.portfolio) + " |");
+        lines.push("| Gross NPL Ratio | " + pct(e.nplRatio, 2) + " |");
+        lines.push("| NPL Amount | " + fmtMoney(e.nplAmount) + " |");
+        lines.push("| **Total ECL Provision Pool** | **" + fmtMoney(e.totalECL) + "** |");
+        lines.push("| ECL as % of Portfolio | " + pct(e.eclPct, 2) + " |");
+        lines.push("| Coverage Ratio (ECL ÷ NPL) | " + pct(e.coverage, 1) + " |");
+        lines.push("");
+        lines.push("### ECL by Stage");
+        lines.push("");
+        lines.push("| Stage | Allocation % | Exposure | PD % | LGD % | Stage ECL |");
+        lines.push("|---|---:|---:|---:|---:|---:|");
+        (e.stages || []).forEach(function (s) {
+          lines.push("| " + s.name + " | " + pct(s.alloc, 1) + " | " + fmtMoney(s.exposure) +
+            " | " + pct(s.pd, 1) + " | " + pct(s.lgd, 1) + " | " + fmtMoney(s.ecl) + " |");
+        });
+        lines.push("");
+        lines.push("## 2. Financial Ratio Suite");
+        lines.push("");
+        lines.push("| Metric | Value | Health |");
+        lines.push("|---|---:|---|");
+        lines.push("| Current Ratio | " + (r.currentLiabilities > 0 ? r.currentRatio.toFixed(2) : "—") + " | " + label(r.currentStatus) + " |");
+        lines.push("| Net Profit Margin | " + (r.revenue > 0 ? r.netMargin.toFixed(1) + "%" : "—") + " | " + label(r.marginStatus) + " |");
+        lines.push("| Working Capital | " + fmtMoney(r.workingCapital) + " | — |");
+        lines.push("");
+        lines.push("**Inputs:** Current Assets " + fmtMoney(r.currentAssets) +
+          " · Current Liabilities " + fmtMoney(r.currentLiabilities) +
+          " · Net Income " + fmtMoney(r.netIncome) +
+          " · Total Revenue " + fmtMoney(r.revenue) + ".");
+        lines.push("");
+        lines.push("---");
+        lines.push("_Indicative analysis only. Not a substitute for audited provisioning or formal financial advice._");
+        return lines.join("\n");
+      }
+      function label(s) { return s === "healthy" ? "🟢 Healthy" : s === "caution" ? "🟡 Caution" : s === "risk" ? "🔴 At Risk" : "—"; }
+
+      function exportSummary() {
+        var md = buildMarkdown();
+        // Download
+        var blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement("a");
+        a.href = url;
+        a.download = "FinAI-Lens-Summary-" + new Date().toISOString().slice(0, 10) + ".md";
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+        // Copy to clipboard (best-effort)
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(md).then(
+            function () { toast("Summary downloaded & copied to clipboard"); },
+            function () { toast("Summary downloaded"); }
+          );
+        } else {
+          toast("Summary downloaded");
+        }
+      }
+
+      var toastTimer;
+      function toast(msg) {
+        $("toastMsg").textContent = msg;
+        var t = $("toast");
+        t.classList.remove("hidden"); t.classList.add("fade-in");
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(function () { t.classList.add("hidden"); }, 2600);
+      }
+
+      // ---------- Wire up ----------
+      function recompute() { computeECL(); computeRatios(); }
+
+      buildStageRows();
+      document.addEventListener("input", function (ev) {
+        if (ev.target && ev.target.tagName === "INPUT") recompute();
+      });
+      $("exportBtn").addEventListener("click", exportSummary);
+
+      recompute(); // initial render with mock defaults
+    })();
+  </script>
+</body>
+
+</html>
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FinAI-Lens // Autonomous IFRS 9 ECL & Ratio Analytics</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+  </style>
+</head>
+
+<body class="bg-slate-950 text-slate-100 min-h-screen antialiased selection:bg-emerald-500 selection:text-slate-950">
+
+  <header class="border-b border-slate-800 bg-slate-900/50 backdrop-blur sticky top-0 z-50 px-6 py-4">
+    <div class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
+      <div class="flex items-center gap-3">
+        <div
+          class="h-8 w-8 rounded-lg bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+          <span class="text-slate-950 font-bold text-sm">Φ</span>
+        </div>
+        <div>
+          <h1
+            class="text-xl font-bold tracking-tight bg-gradient-to-r from-slate-100 to-slate-400 bg-clip-text text-transparent">
+            FinAI-Lens</h1>
+          <p class="text-xs text-slate-400 font-medium tracking-wider uppercase">IFRS 9 & Corporate Finance Intelligence
+            Suite</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <span
+          class="px-2.5 py-1 text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full">AI-Assisted
+          Engine Prototype</span>
+        <button onclick="exportMetrics()"
+          class="cursor-pointer bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium py-1.5 px-3.5 rounded-md border border-slate-700 transition-colors duration-150">
+          Export Analysis Summary
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto p-4 lg:p-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+    <section class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl flex flex-col justify-between">
+      <div>
+        <div class="flex items-center justify-between mb-6">
+          <h2 class="text-lg font-semibold text-slate-200 tracking-tight flex items-center gap-2">
+            <span class="text-emerald-400">01 /</span> IFRS 9 ECL Provisioning Engine
+          </h2>
+          <span class="text-xs text-slate-400 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">Risk
+            Management</span>
+        </div>
+
+        <div class="space-y-4">
+          <div>
+            <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Gross Asset Portfolio
+              Size ($)</label>
+            <input type="number" id="portfolioSize" value="15000000"
+              class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500 transition-colors">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Non-Performing Loan
+              (NPL) Ratio (%)</label>
+            <input type="number" id="nplRatio" value="4.5" step="0.1"
+              class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500 transition-colors">
+          </div>
+
+          <div class="grid grid-cols-3 gap-3 pt-2">
+            <div>
+              <label class="block text-[10px] font-medium text-slate-400 uppercase tracking-wider mb-1">Stage 1 PD (%)
+                <span class="text-slate-500">(Performing)</span></label>
+              <input type="number" id="stage1Pd" value="1.5" step="0.1"
+                class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500 transition-colors">
+            </div>
+            <div>
+              <label class="block text-[10px] font-medium text-slate-400 uppercase tracking-wider mb-1">Stage 2 PD (%)
+                <span class="text-slate-500">(Underperforming)</span></label>
+              <input type="number" id="stage2Pd" value="8.0" step="0.1"
+                class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500 transition-colors">
+            </div>
+            <div>
+              <label class="block text-[10px] font-medium text-slate-400 uppercase tracking-wider mb-1">Stage 3 PD (%)
+                <span class="text-slate-500">(Non-performing)</span></label>
+              <input type="number" id="stage3Pd" value="45.0" step="0.1"
+                class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500 transition-colors">
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Loss Given Default
+              (LGD) Base Factor (%)</label>
+            <input type="number" id="lgdFactor" value="40"
+              class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500 transition-colors">
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-8 pt-6 border-t border-slate-800/60">
+        <button onclick="calculateECL()"
+          class="cursor-pointer w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold text-sm py-2.5 px-4 rounded-lg transition-colors shadow-lg shadow-emerald-500/10 mb-4">
+          Run ECL Engine Simulation
+        </button>
+        <div class="bg-slate-950 border border-slate-800 rounded-lg p-4 space-y-3">
+          <div class="flex justify-between items-center text-xs">
+            <span class="text-slate-400">Total Calculated Macro Impairment Pool:</span>
+            <span id="displayTotalEcl" class="font-mono font-bold text-emerald-400 text-sm">$0.00</span>
+          </div>
+          <div class="flex justify-between items-center text-xs">
+            <span class="text-slate-400">Portfolio Blended Credit Coverage Ratio:</span>
+            <span id="displayEclCoverage" class="font-mono text-slate-200">0.00%</span>
+          </div>
+          <div class="flex justify-between items-center text-xs">
+            <span class="text-slate-400">Calculated Portfolio Status Risk Tier:</span>
+            <span id="eclRiskTier"
+              class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide">Stable</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl flex flex-col justify-between">
+      <div>
+        <div class="flex items-center justify-between mb-6">
+          <h2 class="text-lg font-semibold text-slate-200 tracking-tight flex items-center gap-2">
+            <span class="text-emerald-400">02 /</span> Liquidity & Profitability Suite
+          </h2>
+          <span class="text-xs text-slate-400 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">Ratio
+            Analysis</span>
+        </div>
+
+        <div class="space-y-4">
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Current Assets
+                ($)</label>
+              <input type="number" id="currentAssets" value="4500000"
+                class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500 transition-colors">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Current Liabilities
+                ($)</label>
+              <input type="number" id="currentLiabilities" value="2100000"
+                class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500 transition-colors">
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Total Net Income
+                ($)</label>
+              <input type="number" id="netIncome" value="850000"
+                class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500 transition-colors">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Total Topline
+                Revenue ($)</label>
+              <input type="number" id="totalRevenue" value="5200000"
+                class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500 transition-colors">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-8 pt-6 border-t border-slate-800/60">
+        <button onclick="calculateRatios()"
+          class="cursor-pointer w-full bg-teal-500 hover:bg-teal-400 text-slate-950 font-semibold text-sm py-2.5 px-4 rounded-lg transition-colors shadow-lg shadow-teal-500/10 mb-4">
+          Parse Financial Statements
+        </button>
+        <div class="bg-slate-950 border border-slate-800 rounded-lg p-4 space-y-3">
+          <div class="flex justify-between items-center text-xs">
+            <span class="text-slate-400">Current Ratio (Liquidity Performance):</span>
+            <div class="flex items-center gap-2">
+              <span id="displayCurrentRatio" class="font-mono text-slate-200">0.00x</span>
+              <span id="badgeCurrentRatio" class="text-[10px] font-bold px-1.5 py-0.2 rounded uppercase">--</span>
+            </div>
+          </div>
+          <div class="flex justify-between items-center text-xs">
+            <span class="text-slate-400">Net Profit Margin (Profitability Velocity):</span>
+            <div class="flex items-center gap-2">
+              <span id="displayProfitMargin" class="font-mono text-slate-200">0.00%</span>
+              <span id="badgeProfitMargin" class="text-[10px] font-bold px-1.5 py-0.2 rounded uppercase">--</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    // Automatic runtime initialization execution loop
+    window.addEventListener('DOMContentLoaded', () => {
+      calculateECL();
+      calculateRatios();
+    });
+
+    // IFRS 9 ECL Calculator Engine Functionality
+    function calculateECL() {
+      const portfolio = parseFloat(document.getElementById('portfolioSize').value) || 0;
+      const npl = parseFloat(document.getElementById('nplRatio').value) || 0;
+      const lgd = (parseFloat(document.getElementById('lgdFactor').value) || 0) / 100;
+
+      const pd1 = (parseFloat(document.getElementById('stage1Pd').value) || 0) / 100;
+      const pd2 = (parseFloat(document.getElementById('stage2Pd').value) || 0) / 100;
+      const pd3 = (parseFloat(document.getElementById('stage3Pd').value) || 0) / 100;
+
+      // Allocation of balance parameters based on historical non-performing ratios
+      const stage3Balance = portfolio * (npl / 100);
+      const stage2Balance = portfolio * 0.15; // Assumption factor for underperforming assets
+      const stage1Balance = Math.max(0, portfolio - stage2Balance - stage3Balance);
+
+      // Compute dynamic expected credit losses via stage arrays
+      const ecl1 = stage1Balance * pd1 * lgd;
+      const ecl2 = stage2Balance * pd2 * lgd;
+      const ecl3 = stage3Balance * pd3 * lgd;
+      const totalEcl = ecl1 + ecl2 + ecl3;
+
+      const coverageRatio = portfolio > 0 ? (totalEcl / portfolio) * 100 : 0;
+
+      // DOM UI Render Updates
+      document.getElementById('displayTotalEcl').innerText = '$' + totalEcl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      document.getElementById('displayEclCoverage').innerText = coverageRatio.toFixed(2) + '%';
+
+      const tierBadge = document.getElementById('eclRiskTier');
+      if (npl > 8) {
+        tierBadge.innerText = "Critical Portfolio Stress";
+        tierBadge.className = "px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-rose-500/10 text-rose-400 border border-rose-500/20";
+      } else if (npl > 4) {
+        tierBadge.innerText = "Elevated Credit Risk";
+        tierBadge.className = "px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-amber-500/10 text-amber-400 border border-amber-500/20";
+      } else {
+        tierBadge.innerText = "High-Quality Asset Tier";
+        tierBadge.className = "px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+      }
+    }
+
+    // Corporate Ratio Processing Suite Logic
+    function calculateRatios() {
+      const ca = parseFloat(document.getElementById('currentAssets').value) || 0;
+      const cl = parseFloat(document.getElementById('currentLiabilities').value) || 0;
+      const ni = parseFloat(document.getElementById('netIncome').value) || 0;
+      const rev = parseFloat(document.getElementById('totalRevenue').value) || 0;
+
+      // Metric Compute Formulas
+      const currentRatio = cl > 0 ? ca / cl : 0;
+      const profitMargin = rev > 0 ? (ni / rev) * 100 : 0;
+
+      // DOM UI Updates for Liquidity Indicators
+      document.getElementById('displayCurrentRatio').innerText = currentRatio.toFixed(2) + 'x';
+      const br = document.getElementById('badgeCurrentRatio');
+      if (currentRatio >= 1.5) {
+        br.innerText = "Strong";
+        br.className = "text-[10px] font-bold px-1.5 py-0.2 rounded uppercase bg-emerald-500/10 text-emerald-400";
+      } else if (currentRatio >= 1.0) {
+        br.innerText = "Marginal";
+        br.className = "text-[10px] font-bold px-1.5 py-0.2 rounded uppercase bg-amber-500/10 text-amber-400";
+      } else {
+        br.innerText = "Illiquid Alert";
+        br.className = "text-[10px] font-bold px-1.5 py-0.2 rounded uppercase bg-rose-500/10 text-rose-400";
+      }
+
+      // DOM UI Updates for Profitability Margin Performance Metrics
+      document.getElementById('displayProfitMargin').innerText = profitMargin.toFixed(2) + '%';
+      const bp = document.getElementById('badgeProfitMargin');
+      if (profitMargin >= 15) {
+        bp.innerText = "High Yield";
+        bp.className = "text-[10px] font-bold px-1.5 py-0.2 rounded uppercase bg-emerald-500/10 text-emerald-400";
+      } else if (profitMargin >= 5) {
+        bp.innerText = "Moderate";
+        bp.className = "text-[10px] font-bold px-1.5 py-0.2 rounded uppercase bg-slate-800 text-slate-400";
+      } else {
+        bp.innerText = "Compressed Margin";
+        bp.className = "text-[10px] font-bold px-1.5 py-0.2 rounded uppercase bg-rose-500/10 text-rose-400";
+      }
+    }
+
+    // Analytical Summary Export System Functionality
+    function exportMetrics() {
+      calculateECL();
+      calculateRatios();
+
+      const textOutput = `==================================================
+FINAI-LENS: INTELLIGENCE ADVISORY METRICS REPORT
+Generated Engine State Profile Run Summary
+==================================================
+
+[IFRS 9 METRICS RUN DATA]
+- Portfolio Imputed Impairment Provision Pool: ${document.getElementById('displayTotalEcl').innerText}
+- Calculated Asset Blended Coverage Ratio: ${document.getElementById('displayEclCoverage').innerText}
+- Computed Asset Class Rating: ${document.getElementById('eclRiskTier').innerText}
+
+[CORPORATE STATEMENT FIN-RATIO ANALYSIS]
+- Liquidity Position Factor (Current Ratio): ${document.getElementById('displayCurrentRatio').innerText}
+- Consolidated Business Margins Profile: ${document.getElementById('displayProfitMargin').innerText}
+
+==================================================`;
+
+      const blob = new Blob([textOutput], { type: "text/plain;charset=utf-8" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "FinAI-Lens-Analysis-Profile.txt";
+      link.click();
+    }
+  </script>
+</body>
+
+</html>
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FinAI-Lens // Autonomous IFRS 9 ECL & Ratio Analytics</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+  </style>
+</head>
+
+<body class="bg-slate-950 text-slate-100 min-h-screen antialiased selection:bg-emerald-500 selection:text-slate-950">
+
+  <header class="border-b border-slate-800 bg-slate-900/50 backdrop-blur sticky top-0 z-50 px-6 py-4">
+    <div class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
+      <div class="flex items-center gap-3">
+        <div
+          class="h-8 w-8 rounded-lg bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+          <span class="text-slate-950 font-bold text-sm">Φ</span>
+        </div>
+        <div>
+          <h1
+            class="text-xl font-bold tracking-tight bg-gradient-to-r from-slate-100 to-slate-400 bg-clip-text text-transparent">
+            FinAI-Lens</h1>
+          <p class="text-xs text-slate-400 font-medium tracking-wider uppercase">IFRS 9 & Corporate Finance Intelligence
+            Suite</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <span
+          class="px-2.5 py-1 text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full">AI-Assisted
+          Engine Prototype</span>
+        <button onclick="exportMetrics()"
+          class="cursor-pointer bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium py-1.5 px-3.5 rounded-md border border-slate-700 transition-colors duration-150">
+          Export Analysis Summary
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto p-4 lg:p-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+    <section class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl flex flex-col justify-between">
+      <div>
+        <div class="flex items-center justify-between mb-6">
+          <h2 class="text-lg font-semibold text-slate-200 tracking-tight flex items-center gap-2">
+            <span class="text-emerald-400">01 /</span> IFRS 9 ECL Provisioning Engine
+          </h2>
+          <span class="text-xs text-slate-400 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">Risk
+            Management</span>
+        </div>
+
+        <div class="space-y-4">
+          <div>
+            <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Gross Asset Portfolio
+              Size (PKR)</label>
+            <input type="number" id="portfolioSize" value="15000000"
+              class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500 transition-colors">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Non-Performing Loan
+              (NPL) Ratio (%)</label>
+            <input type="number" id="nplRatio" value="4.5" step="0.1"
+              class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500 transition-colors">
+          </div>
+
+          <div class="grid grid-cols-3 gap-3 pt-2">
+            <div>
+              <label class="block text-[10px] font-medium text-slate-400 uppercase tracking-wider mb-1">Stage 1 PD (%)
+                <span class="text-slate-500">(Performing)</span></label>
+              <input type="number" id="stage1Pd" value="1.5" step="0.1"
+                class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500 transition-colors">
+            </div>
+            <div>
+              <label class="block text-[10px] font-medium text-slate-400 uppercase tracking-wider mb-1">Stage 2 PD (%)
+                <span class="text-slate-500">(Underperforming)</span></label>
+              <input type="number" id="stage2Pd" value="8.0" step="0.1"
+                class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500 transition-colors">
+            </div>
+            <div>
+              <label class="block text-[10px] font-medium text-slate-400 uppercase tracking-wider mb-1">Stage 3 PD (%)
+                <span class="text-slate-500">(Non-performing)</span></label>
+              <input type="number" id="stage3Pd" value="45.0" step="0.1"
+                class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500 transition-colors">
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Loss Given Default
+              (LGD) Base Factor (%)</label>
+            <input type="number" id="lgdFactor" value="40"
+              class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500 transition-colors">
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-8 pt-6 border-t border-slate-800/60">
+        <button onclick="calculateECL()"
+          class="cursor-pointer w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold text-sm py-2.5 px-4 rounded-lg transition-colors shadow-lg shadow-emerald-500/10 mb-4">
+          Run ECL Engine Simulation
+        </button>
+        <div class="bg-slate-950 border border-slate-800 rounded-lg p-4 space-y-3">
+          <div class="flex justify-between items-center text-xs">
+            <span class="text-slate-400">Total Calculated Macro Impairment Pool:</span>
+            <span id="displayTotalEcl" class="font-mono font-bold text-emerald-400 text-sm">PKR 0.00</span>
+          </div>
+          <div class="flex justify-between items-center text-xs">
+            <span class="text-slate-400">Portfolio Blended Credit Coverage Ratio:</span>
+            <span id="displayEclCoverage" class="font-mono text-slate-200">0.00%</span>
+          </div>
+          <div class="flex justify-between items-center text-xs">
+            <span class="text-slate-400">Calculated Portfolio Status Risk Tier:</span>
+            <span id="eclRiskTier"
+              class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide">Stable</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl flex flex-col justify-between">
+      <div>
+        <div class="flex items-center justify-between mb-6">
+          <h2 class="text-lg font-semibold text-slate-200 tracking-tight flex items-center gap-2">
+            <span class="text-emerald-400">02 /</span> Liquidity & Profitability Suite
+          </h2>
+          <span class="text-xs text-slate-400 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">Ratio
+            Analysis</span>
+        </div>
+
+        <div class="space-y-4">
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Current Assets
+                (PKR)</label>
+              <input type="number" id="currentAssets" value="4500000"
+                class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500 transition-colors">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Current Liabilities
+                (PKR)</label>
+              <input type="number" id="currentLiabilities" value="2100000"
+                class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500 transition-colors">
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Total Net Income
+                (PKR)</label>
+              <input type="number" id="netIncome" value="850000"
+                class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500 transition-colors">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Total Topline
+                Revenue (PKR)</label>
+              <input type="number" id="totalRevenue" value="5200000"
+                class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-emerald-500 transition-colors">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-8 pt-6 border-t border-slate-800/60">
+        <button onclick="calculateRatios()"
+          class="cursor-pointer w-full bg-teal-500 hover:bg-teal-400 text-slate-950 font-semibold text-sm py-2.5 px-4 rounded-lg transition-colors shadow-lg shadow-teal-500/10 mb-4">
+          Parse Financial Statements
+        </button>
+        <div class="bg-slate-950 border border-slate-800 rounded-lg p-4 space-y-3">
+          <div class="flex justify-between items-center text-xs">
+            <span class="text-slate-400">Current Ratio (Liquidity Performance):</span>
+            <div class="flex items-center gap-2">
+              <span id="displayCurrentRatio" class="font-mono text-slate-200">0.00x</span>
+              <span id="badgeCurrentRatio" class="text-[10px] font-bold px-1.5 py-0.2 rounded uppercase">--</span>
+            </div>
+          </div>
+          <div class="flex justify-between items-center text-xs">
+            <span class="text-slate-400">Net Profit Margin (Profitability Velocity):</span>
+            <div class="flex items-center gap-2">
+              <span id="displayProfitMargin" class="font-mono text-slate-200">0.00%</span>
+              <span id="badgeProfitMargin" class="text-[10px] font-bold px-1.5 py-0.2 rounded uppercase">--</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    window.addEventListener('DOMContentLoaded', () => {
+      calculateECL();
+      calculateRatios();
+    });
+
+    function calculateECL() {
+      const portfolio = parseFloat(document.getElementById('portfolioSize').value) || 0;
+      const npl = parseFloat(document.getElementById('nplRatio').value) || 0;
+      const lgd = (parseFloat(document.getElementById('lgdFactor').value) || 0) / 100;
+
+      const pd1 = (parseFloat(document.getElementById('stage1Pd').value) || 0) / 100;
+      const pd2 = (parseFloat(document.getElementById('stage2Pd').value) || 0) / 100;
+      const pd3 = (parseFloat(document.getElementById('stage3Pd').value) || 0) / 100;
+
+      const stage3Balance = portfolio * (npl / 100);
+      const stage2Balance = portfolio * 0.15;
+      const stage1Balance = Math.max(0, portfolio - stage2Balance - stage3Balance);
+
+      const ecl1 = stage1Balance * pd1 * lgd;
+      const ecl2 = stage2Balance * pd2 * lgd;
+      const ecl3 = stage3Balance * pd3 * lgd;
+      const totalEcl = ecl1 + ecl2 + ecl3;
+
+      const coverageRatio = portfolio > 0 ? (totalEcl / portfolio) * 100 : 0;
+
+      document.getElementById('displayTotalEcl').innerText = 'PKR ' + totalEcl.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      document.getElementById('displayEclCoverage').innerText = coverageRatio.toFixed(2) + '%';
+
+      const tierBadge = document.getElementById('eclRiskTier');
+      if (npl > 8) {
+        tierBadge.innerText = "Critical Portfolio Stress";
+        tierBadge.className = "px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-rose-500/10 text-rose-400 border border-rose-500/20";
+      } else if (npl > 4) {
+        tierBadge.innerText = "Elevated Credit Risk";
+        tierBadge.className = "px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-amber-500/10 text-amber-400 border border-amber-500/20";
+      } else {
+        tierBadge.innerText = "High-Quality Asset Tier";
+        tierBadge.className = "px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+      }
+    }
+
+    function calculateRatios() {
+      const ca = parseFloat(document.getElementById('currentAssets').value) || 0;
+      const cl = parseFloat(document.getElementById('currentLiabilities').value) || 0;
+      const ni = parseFloat(document.getElementById('netIncome').value) || 0;
+      const rev = parseFloat(document.getElementById('totalRevenue').value) || 0;
+
+      const currentRatio = cl > 0 ? ca / cl : 0;
+      const profitMargin = rev > 0 ? (ni / rev) * 100 : 0;
+
+      document.getElementById('displayCurrentRatio').innerText = currentRatio.toFixed(2) + 'x';
+      const br = document.getElementById('badgeCurrentRatio');
+      if (currentRatio >= 1.5) {
+        br.innerText = "Strong";
+        br.className = "text-[10px] font-bold px-1.5 py-0.2 rounded uppercase bg-emerald-500/10 text-emerald-400";
+      } else if (currentRatio >= 1.0) {
+        br.innerText = "Marginal";
+        br.className = "text-[10px] font-bold px-1.5 py-0.2 rounded uppercase bg-amber-500/10 text-amber-400";
+      } else {
+        br.innerText = "Illiquid Alert";
+        br.className = "text-[10px] font-bold px-1.5 py-0.2 rounded uppercase bg-rose-500/10 text-rose-400";
+      }
+
+      document.getElementById('displayProfitMargin').innerText = profitMargin.toFixed(2) + '%';
+      const bp = document.getElementById('badgeProfitMargin');
+      if (profitMargin >= 15) {
+        bp.innerText = "High Yield";
+        bp.className = "text-[10px] font-bold px-1.5 py-0.2 rounded uppercase bg-emerald-500/10 text-emerald-400";
+      } else if (profitMargin >= 5) {
+        bp.innerText = "Moderate";
+        bp.className = "text-[10px] font-bold px-1.5 py-0.2 rounded uppercase bg-slate-800 text-slate-400";
+      } else {
+        bp.innerText = "Compressed Margin";
+        bp.className = "text-[10px] font-bold px-1.5 py-0
